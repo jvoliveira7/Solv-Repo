@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  setor     String?
+  perfil    Perfil   @default(USUARIO)
+  criadoEm DateTime @default(now())
+
+  chamadosAbertos  Chamado[]    @relation("Solicitante")
+  chamadosAtendidos Chamado[]   @relation("Tecnico")
+  comentarios      Comentario[]
+  mensagens        Mensagem[]
+  chatsComoUsuario ChatSessao[] @relation("ChatUsuario")
+  chatsComoTecnico ChatSessao[] @relation("ChatTecnico")
+}
+
+enum Perfil {
+  USUARIO
+  TECNICO
+  ADMIN
+}
+
+model Chamado {
+  id          String     @id @default(uuid())
+  titulo      String
+  descricao   String
+  categoria   Categoria
+  prioridade  Prioridade @default(MEDIA)
+  status      Status     @default(ABERTO)
+  localizacao String?
+  criadoEm   DateTime   @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  solicitanteId String
+  solicitante   Usuario  @relation("Solicitante", fields: [solicitanteId], references: [id])
+
+  tecnicoId String?
+  tecnico   Usuario? @relation("Tecnico", fields: [tecnicoId], references: [id])
+
+  comentarios Comentario[]
+  chat        ChatSessao?
+}
+
+enum Categoria {
+  HARDWARE
+  SOFTWARE
+  REDE
+  ACESSO
+  OUTRO
+}
+
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum Status {
+  ABERTO
+  EM_ATENDIMENTO
+  AGUARDANDO
+  RESOLVIDO
+  FECHADO
+}
+
+model Comentario {
+  id        String   @id @default(uuid())
+  texto     String
+  criadoEm DateTime @default(now())
+
+  autorId   String
+  autor     Usuario  @relation(fields: [autorId], references: [id])
+
+  chamadoId String
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id])
+}
+
+model ChatSessao {
+  id               String   @id @default(uuid())
+  aprovadoUsuario  Boolean  @default(false)
+  aprovadoTecnico  Boolean  @default(false)
+  ativa            Boolean  @default(false)
+  criadoEm        DateTime @default(now())
+
+  chamadoId String   @unique
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id])
+
+  usuarioId String
+  usuario   Usuario  @relation("ChatUsuario", fields: [usuarioId], references: [id])
+
+  tecnicoId String
+  tecnico   Usuario  @relation("ChatTecnico", fields: [tecnicoId], references: [id])
+
+  mensagens Mensagem[]
+}
+
+model Mensagem {
+  id        String   @id @default(uuid())
+  texto     String
+  criadoEm DateTime @default(now())
+
+  autorId   String
+  autor     Usuario    @relation(fields: [autorId], references: [id])
+
+  sessaoId  String
+  sessao    ChatSessao @relation(fields: [sessaoId], references: [id])
+}
