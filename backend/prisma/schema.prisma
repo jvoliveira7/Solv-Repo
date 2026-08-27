@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 model Usuario {
   id        String   @id @default(uuid())
   nome      String
@@ -14,12 +15,13 @@ model Usuario {
   perfil    Perfil   @default(USUARIO)
   criadoEm DateTime @default(now())
 
-  chamadosAbertos  Chamado[]    @relation("Solicitante")
-  chamadosAtendidos Chamado[]   @relation("Tecnico")
-  comentarios      Comentario[]
-  mensagens        Mensagem[]
-  chatsComoUsuario ChatSessao[] @relation("ChatUsuario")
-  chatsComoTecnico ChatSessao[] @relation("ChatTecnico")
+  chamadosAbertos   Chamado[]    @relation("Solicitante")
+  chamadosAtendidos Chamado[]    @relation("Tecnico")
+  comentarios       Comentario[]
+  mensagens         Mensagem[]
+  chatsComoUsuario  ChatSessao[] @relation("ChatUsuario")
+  chatsComoTecnico  ChatSessao[] @relation("ChatTecnico")
+  avaliacoes        Avaliacao[]
 }
 
 enum Perfil {
@@ -29,15 +31,15 @@ enum Perfil {
 }
 
 model Chamado {
-  id          String     @id @default(uuid())
-  titulo      String
-  descricao   String
-  categoria   Categoria
-  prioridade  Prioridade @default(MEDIA)
-  status      Status     @default(ABERTO)
-  localizacao String?
-  criadoEm   DateTime   @default(now())
-  atualizadoEm DateTime @updatedAt
+  id           String     @id @default(uuid())
+  titulo       String
+  descricao    String
+  categoria    Categoria
+  prioridade   Prioridade @default(MEDIA)
+  status       Status     @default(ABERTO)
+  localizacao  String?
+  criadoEm    DateTime   @default(now())
+  atualizadoEm DateTime  @updatedAt
 
   solicitanteId String
   solicitante   Usuario  @relation("Solicitante", fields: [solicitanteId], references: [id])
@@ -47,6 +49,7 @@ model Chamado {
 
   comentarios Comentario[]
   chat        ChatSessao?
+  avaliacao   Avaliacao?
 }
 
 enum Categoria {
@@ -54,6 +57,7 @@ enum Categoria {
   SOFTWARE
   REDE
   ACESSO
+  IMPRESSORA
   OUTRO
 }
 
@@ -61,6 +65,7 @@ enum Prioridade {
   BAIXA
   MEDIA
   ALTA
+  CRITICA
 }
 
 enum Status {
@@ -69,6 +74,12 @@ enum Status {
   AGUARDANDO
   RESOLVIDO
   FECHADO
+}
+
+enum StatusChat {
+  PENDENTE
+  ATIVA
+  ENCERRADA
 }
 
 model Comentario {
@@ -84,11 +95,9 @@ model Comentario {
 }
 
 model ChatSessao {
-  id               String   @id @default(uuid())
-  aprovadoUsuario  Boolean  @default(false)
-  aprovadoTecnico  Boolean  @default(false)
-  ativa            Boolean  @default(false)
-  criadoEm        DateTime @default(now())
+  id        String     @id @default(uuid())
+  status    StatusChat @default(PENDENTE)
+  criadoEm DateTime   @default(now())
 
   chamadoId String   @unique
   chamado   Chamado  @relation(fields: [chamadoId], references: [id])
@@ -107,9 +116,22 @@ model Mensagem {
   texto     String
   criadoEm DateTime @default(now())
 
-  autorId   String
-  autor     Usuario    @relation(fields: [autorId], references: [id])
+  autorId  String
+  autor    Usuario    @relation(fields: [autorId], references: [id])
 
-  sessaoId  String
-  sessao    ChatSessao @relation(fields: [sessaoId], references: [id])
+  sessaoId String
+  sessao   ChatSessao @relation(fields: [sessaoId], references: [id])
+}
+
+model Avaliacao {
+  id         String   @id @default(uuid())
+  nota       Int
+  comentario String?
+  criadoEm  DateTime @default(now())
+
+  chamadoId String  @unique
+  chamado   Chamado @relation(fields: [chamadoId], references: [id])
+
+  autorId String
+  autor   Usuario @relation(fields: [autorId], references: [id])
 }

@@ -158,9 +158,11 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
           style={[styles.botaoAbrir, enviando && { opacity: 0.6 }]}
           onPress={handleAbrir}
           disabled={enviando}
+          
         >
           <Text style={styles.botaoAbrirTexto}>
             {enviando ? 'Abrindo chamado...' : '✓ Abrir este chamado'}
+            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />
           </Text>
         </TouchableOpacity>
 

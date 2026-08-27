@@ -30,23 +30,18 @@ export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // Restaura sessão ao abrir o app
-  useEffect(() => {
-    async function restaurarSessao() {
-      try {
-        const token = await getToken();
-        const usuario = await getUsuario();
-        if (token && usuario) {
-          dispatch({ type: 'RESTAURAR_SESSAO', usuario, token });
-        } else {
+    useEffect(() => {
+      async function restaurarSessao() {
+        try {
+          await clearAuth(); // força limpeza — REMOVER DEPOIS
+          dispatch({ type: 'LOGOUT' });
+        } catch {
           dispatch({ type: 'LOGOUT' });
         }
-      } catch {
-        dispatch({ type: 'LOGOUT' });
       }
-    }
-    restaurarSessao();
-  }, []);
-
+      restaurarSessao();
+    }, []);
+    
   async function login(email, senha) {
     const { data } = await api.post('/auth/login', { email, senha });
     await saveAuth(data.token, data.usuario);

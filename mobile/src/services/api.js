@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getToken } from '../storage/authStorage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.0.213:3000/api', // Android emulator → localhost
+  baseURL: 'http://192.168.0.74:3000/api', // Android emulator → localhost
   timeout: 10000,
 });
 

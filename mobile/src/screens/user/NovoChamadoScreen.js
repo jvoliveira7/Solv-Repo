@@ -36,12 +36,14 @@ export default function NovoChamadoScreen({ navigation }) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-      const mensagem = err.response?.data?.erro || 'Erro ao abrir chamado.';
-      Alert.alert('Erro', mensagem);
-    } finally {
-      setCarregando(false);
-    }
+  console.log('ERRO COMPLETO:', JSON.stringify(err.message));
+  console.log('RESPONSE:', JSON.stringify(err.response?.data));
+  const mensagem = err.response?.data?.erro || err.message || 'Erro ao abrir chamado.';
+  Alert.alert('Erro', mensagem);
+}
+
   }
+
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -150,4 +152,6 @@ const styles = StyleSheet.create({
   },
   botaoDesabilitado: { opacity: 0.6 },
   botaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  
 });

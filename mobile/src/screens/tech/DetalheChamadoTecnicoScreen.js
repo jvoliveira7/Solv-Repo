@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import api from '../../services/api';
+import { conectarSocket } from '../../services/socketService';
 import { useAuth } from '../../context/AuthContext';
 
 const STATUS_COR = {
@@ -22,18 +23,22 @@ const PROXIMOS_STATUS = {
   FECHADO: [],
 };
 
-export default function DetalheChamadoTecnicoScreen({ route }) {
+export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   const { id } = route.params;
   const { usuario } = useAuth();
   const [chamado, setChamado] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [anotacao, setAnotacao] = useState('');
   const [atualizando, setAtualizando] = useState(false);
+  const [sessaoChat, setSessaoChat] = useState(null);
+  const socketRef = useRef(null);
 
   async function carregarChamado() {
     try {
       const { data } = await api.get(`/chamados/${id}`);
       setChamado(data);
+      const { data: chatData } = await api.get(`/chamados/${id}/chat`);
+      setSessaoChat(chatData.sessao);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar o chamado.');
     } finally {
@@ -41,7 +46,55 @@ export default function DetalheChamadoTecnicoScreen({ route }) {
     }
   }
 
-  useEffect(() => { carregarChamado(); }, []);
+  useEffect(() => {
+    carregarChamado();
+    configurarSocket();
+
+    return () => {
+      const socket = socketRef.current;
+      if (socket) {
+        socket.off('solicitacao_chat');
+      }
+    };
+  }, []);
+
+  async function configurarSocket() {
+    const socket = await conectarSocket();
+    socketRef.current = socket;
+
+    // Recebe solicitação de chat do usuário
+    socket.on('solicitacao_chat', ({ sessaoId, chamadoId, chamadoTitulo, solicitante }) => {
+      if (chamadoId !== id) return;
+
+      Alert.alert(
+        '💬 Solicitação de Chat',
+        `${solicitante.nome} quer conversar sobre o chamado "${chamadoTitulo}".`,
+        [
+          {
+            text: 'Recusar',
+            style: 'destructive',
+            onPress: () => {
+              socket.emit('recusar_chat', { sessaoId });
+              setSessaoChat(null);
+            },
+          },
+          {
+            text: 'Aceitar',
+            onPress: () => {
+              socket.emit('aceitar_chat', { sessaoId });
+              setSessaoChat({ id: sessaoId, status: 'ATIVA' });
+              navigation.navigate('Chat', {
+                sessaoId,
+                chamadoTitulo,
+                contato: solicitante,
+                isTecnico: true,
+              });
+            },
+          },
+        ]
+      );
+    });
+  }
 
   async function handleAtualizarStatus(novoStatus) {
     setAtualizando(true);
@@ -81,6 +134,7 @@ export default function DetalheChamadoTecnicoScreen({ route }) {
   if (!chamado) return null;
 
   const proximosStatus = PROXIMOS_STATUS[chamado.status] || [];
+  const chatAtivo = sessaoChat?.status === 'ATIVA';
 
   return (
     <KeyboardAvoidingView
@@ -102,6 +156,21 @@ export default function DetalheChamadoTecnicoScreen({ route }) {
         <Text style={styles.meta}>{chamado.categoria} · {chamado.prioridade}</Text>
         {chamado.localizacao && <Text style={styles.meta}>📍 {chamado.localizacao}</Text>}
         <Text style={styles.meta}>Aberto em {new Date(chamado.criadoEm).toLocaleDateString('pt-BR')}</Text>
+
+        {/* Botão de chat ativo */}
+        {chatAtivo && (
+          <TouchableOpacity
+            style={styles.botaoChat}
+            onPress={() => navigation.navigate('Chat', {
+              sessaoId: sessaoChat.id,
+              chamadoTitulo: chamado.titulo,
+              contato: chamado.solicitante,
+              isTecnico: true,
+            })}
+          >
+            <Text style={styles.botaoChatTexto}>💬 Chat ativo — Abrir conversa</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.separador} />
 
@@ -126,7 +195,7 @@ export default function DetalheChamadoTecnicoScreen({ route }) {
           </View>
         ))}
 
-        {/* Ações do técnico */}
+        {/* Ações */}
         {proximosStatus.length > 0 && (
           <>
             <View style={styles.separador} />
@@ -139,7 +208,6 @@ export default function DetalheChamadoTecnicoScreen({ route }) {
               value={anotacao}
               onChangeText={setAnotacao}
             />
-
             <Text style={styles.secaoTitulo}>Mover para</Text>
             <View style={styles.acoesRow}>
               {proximosStatus.map((status) => (
@@ -178,6 +246,11 @@ const styles = StyleSheet.create({
   secaoTitulo: { color: '#aaa', fontSize: 13, fontWeight: '600', marginBottom: 12 },
   descricao: { color: '#ccc', fontSize: 15, lineHeight: 22 },
   vazioTexto: { color: '#555', fontSize: 14 },
+  botaoChat: {
+    backgroundColor: '#2d6fff22', borderWidth: 1, borderColor: '#2d6fff',
+    borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16,
+  },
+  botaoChatTexto: { color: '#2d6fff', fontSize: 15, fontWeight: '600' },
   comentario: {
     backgroundColor: '#1a1d27', borderRadius: 10, padding: 14,
     marginBottom: 10, borderWidth: 1, borderColor: '#2a2d3a',
