@@ -27,7 +27,7 @@ module.exports = function configurarSocket(io) {
 
     // ── Cria ou reaproveita uma sessão de chat (usada por ambos os lados) ──
     async function abrirSolicitacao({ chamadoId, iniciadoPor }) {
-      let chamado = await prisma.chamado.findUnique({
+      const chamado = await prisma.chamado.findUnique({
         where: { id: chamadoId },
         include: {
           solicitante: { select: { id: true, nome: true } },
@@ -37,21 +37,12 @@ module.exports = function configurarSocket(io) {
 
       if (!chamado) throw { erro: 'Chamado não encontrado' };
 
-      // Técnico pode convidar pra chat mesmo sem ter assumido o chamado
-      // formalmente ainda — convidar já vale como assumir o atendimento.
-      if (iniciadoPor === 'TECNICO' && !chamado.tecnicoId) {
-        if (perfil !== 'TECNICO' && perfil !== 'ADMIN') throw { erro: 'Acesso negado' };
-        chamado = await prisma.chamado.update({
-          where: { id: chamadoId },
-          data: { tecnicoId: usuarioId },
-          include: {
-            solicitante: { select: { id: true, nome: true } },
-            tecnico: { select: { id: true, nome: true } },
-          },
-        });
+      // RN14: chat só é permitido com o chamado em "Em atendimento" — ou
+      // seja, o técnico já precisa ter assumido o chamado antes de poder
+      // abrir ou aceitar qualquer chat, dos dois lados.
+      if (chamado.status !== 'EM_ATENDIMENTO' || !chamado.tecnicoId) {
+        throw { erro: 'O chamado precisa estar "Em atendimento" para abrir o chat' };
       }
-
-      if (!chamado.tecnicoId) throw { erro: 'Chamado sem técnico atribuído' };
 
       const souSolicitante = chamado.solicitanteId === usuarioId;
       const souTecnico = chamado.tecnicoId === usuarioId;
@@ -66,11 +57,14 @@ module.exports = function configurarSocket(io) {
         return { sessao: sessaoExistente, chamado, reaproveitada: true };
       }
 
-      // Recria (ou cria) sessão PENDENTE — upsert cobre o caso de sessão ENCERRADA anterior
+      // RN15/RN16: usuário SOLICITA (fica PENDENTE até o técnico aceitar);
+      // técnico ABRE DIRETO (já nasce ATIVA, sem aprovação do usuário).
+      const statusInicial = iniciadoPor === 'TECNICO' ? 'ATIVA' : 'PENDENTE';
+
       const sessao = await prisma.chatSessao.upsert({
         where: { chamadoId },
         update: {
-          status: 'PENDENTE',
+          status: statusInicial,
           iniciadoPor,
           encerradoPorResolucao: false,
         },
@@ -78,7 +72,7 @@ module.exports = function configurarSocket(io) {
           chamadoId,
           usuarioId: chamado.solicitanteId,
           tecnicoId: chamado.tecnicoId,
-          status: 'PENDENTE',
+          status: statusInicial,
           iniciadoPor,
         },
       });
@@ -91,7 +85,7 @@ module.exports = function configurarSocket(io) {
       try {
         const { sessao, chamado, reaproveitada } = await abrirSolicitacao({ chamadoId, iniciadoPor: 'USUARIO' });
 
-        if (reaproveitada) return socket.emit('chat_solicitado', { sessaoId: sessao.id });
+        if (reaproveitada) return socket.emit('chat_solicitado', { sessaoId: sessao.id, chamadoId, status: sessao.status, iniciadoPor: sessao.iniciadoPor });
 
         io.to(`usuario:${chamado.tecnicoId}`).emit('solicitacao_chat', {
           sessaoId: sessao.id,
@@ -100,7 +94,7 @@ module.exports = function configurarSocket(io) {
           solicitante: { id: usuarioId, nome },
         });
 
-        socket.emit('chat_solicitado', { sessaoId: sessao.id });
+        socket.emit('chat_solicitado', { sessaoId: sessao.id, chamadoId, status: sessao.status, iniciadoPor: sessao.iniciadoPor });
         console.log(`Chat solicitado: ${nome} → ${chamado.tecnico.nome}`);
       } catch (err) {
         console.error('Erro em solicitar_chat:', err);
@@ -108,25 +102,32 @@ module.exports = function configurarSocket(io) {
       }
     });
 
-    // ── TÉCNICO convida para chat (fluxo inverso) ───────────────────
+    // ── TÉCNICO abre chat direto (RN16 — sem aprovação do usuário) ──
     socket.on('convidar_chat', async ({ chamadoId }) => {
       try {
-        const { sessao, chamado, reaproveitada } = await abrirSolicitacao({ chamadoId, iniciadoPor: 'TECNICO' });
+        const { sessao, chamado } = await abrirSolicitacao({ chamadoId, iniciadoPor: 'TECNICO' });
 
-        if (reaproveitada) return socket.emit('chat_solicitado', { sessaoId: sessao.id });
+        // Chat já nasce ATIVO: o técnico entra na sala e ambos são avisados
+        socket.join(`chat:${sessao.id}`);
 
-        io.to(`usuario:${chamado.solicitanteId}`).emit('convite_chat', {
+        // Avisa o usuário que o técnico abriu um chat (sessão já ativa)
+        io.to(`usuario:${chamado.solicitanteId}`).emit('chat_aceito', {
           sessaoId: sessao.id,
           chamadoId,
-          chamadoTitulo: chamado.titulo,
-          tecnico: { id: usuarioId, nome },
+          contato: { id: usuarioId, nome },
         });
 
-        socket.emit('chat_solicitado', { sessaoId: sessao.id });
-        console.log(`Convite de chat: ${nome} → ${chamado.solicitante.nome}`);
+        // Confirma pro próprio técnico que já pode abrir a conversa
+        socket.emit('chat_iniciado', {
+          sessaoId: sessao.id,
+          chamadoId,
+          contato: chamado.solicitante,
+        });
+
+        console.log(`Chat aberto direto pelo técnico: ${nome} → ${chamado.solicitante.nome}`);
       } catch (err) {
         console.error('Erro em convidar_chat:', err);
-        socket.emit('erro', { mensagem: err.erro || 'Erro ao convidar para chat' });
+        socket.emit('erro', { mensagem: err.erro || 'Erro ao abrir chat' });
       }
     });
 
@@ -228,8 +229,22 @@ module.exports = function configurarSocket(io) {
         const mensagens = await prisma.mensagem.findMany({
           where: { sessaoId },
           orderBy: { criadoEm: 'asc' },
-          include: { autor: { select: { id: true, nome: true, perfil: true } } },
+          include: {
+            autor: { select: { id: true, nome: true, perfil: true } },
+            respostaA: { select: { id: true, texto: true, autor: { select: { nome: true } } } },
+          },
         });
+
+        // Ao abrir um chat ATIVO, marca como lidas as mensagens do outro lado
+        if (sessao.status === 'ATIVA') {
+          const { count } = await prisma.mensagem.updateMany({
+            where: { sessaoId, autorId: { not: usuarioId }, status: { not: 'LIDA' } },
+            data: { status: 'LIDA' },
+          });
+          if (count > 0) {
+            io.to(`chat:${sessaoId}`).emit('mensagens_lidas', { sessaoId, lidasPor: usuarioId });
+          }
+        }
 
         socket.emit('historico_chat', {
           sessaoId,
@@ -237,6 +252,7 @@ module.exports = function configurarSocket(io) {
           somenteLeitura: sessao.status === 'ENCERRADA',
           encerradoPorResolucao: sessao.encerradoPorResolucao,
           contatoOnline,
+          iniciadoPor: sessao.iniciadoPor,
         });
       } catch (err) {
         console.error('Erro em entrar_chat:', err);
@@ -245,7 +261,7 @@ module.exports = function configurarSocket(io) {
     });
 
     // ── ENVIAR mensagem ────────────────────────────────────────────
-    socket.on('mensagem', async ({ sessaoId, texto }) => {
+    socket.on('mensagem', async ({ sessaoId, texto, respostaAId }) => {
       if (!texto?.trim()) return;
 
       try {
@@ -258,11 +274,24 @@ module.exports = function configurarSocket(io) {
         const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
         if (!temAcesso) return socket.emit('erro', { mensagem: 'Acesso negado' });
 
+        // ENTREGUE de cara se o outro lado já está com a sala aberta
+        const room = io.sockets.adapter.rooms.get(`chat:${sessaoId}`);
+        const outroJaPresente = !!room && [...room].some((sid) => io.sockets.sockets.get(sid)?.usuario?.id !== usuarioId);
+
         const mensagem = await prisma.mensagem.create({
-          data: { texto: texto.trim(), autorId: usuarioId, sessaoId },
+          data: {
+            texto: texto.trim(),
+            autorId: usuarioId,
+            sessaoId,
+            respostaAId: respostaAId || undefined,
+            status: outroJaPresente ? 'ENTREGUE' : 'ENVIADA',
+          },
           include: {
             autor: { select: { id: true, nome: true, perfil: true } },
             sessao: { select: { chamadoId: true } },
+            respostaA: {
+              select: { id: true, texto: true, autor: { select: { nome: true } } },
+            },
           },
         });
 
