@@ -17,6 +17,8 @@ export default function ChatScreen({ route, navigation }) {
   const [encerrado, setEncerrado] = useState(false);
   const [encerradoPorResolucao, setEncerradoPorResolucao] = useState(false);
   const [contatoOnline, setContatoOnline] = useState(false);
+  const [iniciadoPor, setIniciadoPor] = useState(null);
+  const [respondendoA, setRespondendoA] = useState(null);
   const socketRef = useRef(null);
   const flatListRef = useRef(null);
 
@@ -30,11 +32,12 @@ export default function ChatScreen({ route, navigation }) {
 
         socket.emit('entrar_chat', { sessaoId });
 
-        socket.on('historico_chat', ({ mensagens: hist, somenteLeitura: leitura, encerradoPorResolucao: porResolucao, contatoOnline: online }) => {
+        socket.on('historico_chat', ({ mensagens: hist, somenteLeitura: leitura, encerradoPorResolucao: porResolucao, contatoOnline: online, iniciadoPor: quemIniciou }) => {
           if (!mounted) return;
           setMensagens(hist);
           setConectando(false);
           setContatoOnline(!!online);
+          setIniciadoPor(quemIniciou);
           if (leitura) {
             setEncerrado(true);
             setEncerradoPorResolucao(!!porResolucao);
@@ -43,6 +46,14 @@ export default function ChatScreen({ route, navigation }) {
 
         socket.on('nova_mensagem', (msg) => {
           if (mounted) setMensagens((prev) => [...prev, msg]);
+        });
+
+        socket.on('mensagens_lidas', ({ lidasPor }) => {
+          if (!mounted) return;
+          // O outro lado leu minhas mensagens — atualiza meus ticks pra azul
+          setMensagens((prev) => prev.map((m) =>
+            m.autor.id !== lidasPor ? { ...m, status: 'LIDA' } : m
+          ));
         });
 
         socket.on('chat_encerrado', ({ encerradoPorResolucao: porResolucao } = {}) => {
@@ -73,6 +84,7 @@ export default function ChatScreen({ route, navigation }) {
       if (s) {
         s.off('historico_chat');
         s.off('nova_mensagem');
+        s.off('mensagens_lidas');
         s.off('chat_encerrado');
         s.off('usuario_status');
         s.off('erro');
@@ -82,8 +94,9 @@ export default function ChatScreen({ route, navigation }) {
 
   function enviarMensagem() {
     if (!texto.trim() || encerrado) return;
-    socketRef.current?.emit('mensagem', { sessaoId, texto });
+    socketRef.current?.emit('mensagem', { sessaoId, texto, respostaAId: respondendoA?.id });
     setTexto('');
+    setRespondendoA(null);
     flatListRef.current?.scrollToEnd({ animated: true });
   }
 
@@ -100,23 +113,42 @@ export default function ChatScreen({ route, navigation }) {
     ]);
   }
 
+  function Ticks({ status }) {
+    if (status === 'LIDA') return <Text style={[styles.ticks, styles.ticksLida]}>✓✓</Text>;
+    if (status === 'ENTREGUE') return <Text style={styles.ticks}>✓✓</Text>;
+    return <Text style={styles.ticks}>✓</Text>;
+  }
+
   function renderMensagem({ item }) {
     const minha = item.autor.id === usuario.id;
     const abrev = PERFIL_ABREV[item.autor.perfil];
     return (
-      <View style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onLongPress={() => !encerrado && setRespondendoA(item)}
+        style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}
+      >
         {!minha && (
           <Text style={styles.bolhaAutor}>
             {item.autor.nome}{abrev ? ` · ${abrev}` : ''}
           </Text>
         )}
         <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
+          {item.respostaA && (
+            <View style={[styles.citacao, minha && styles.citacaoMinha]}>
+              <Text style={[styles.citacaoAutor, minha && styles.citacaoAutorMinha]}>{item.respostaA.autor.nome}</Text>
+              <Text style={[styles.citacaoTexto, minha && styles.citacaoTextoMinha]} numberOfLines={1}>{item.respostaA.texto}</Text>
+            </View>
+          )}
           <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
-          <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
-            {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          <View style={styles.bolhaRodape}>
+            <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
+              {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {minha && <Ticks status={item.status} />}
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -168,7 +200,11 @@ export default function ChatScreen({ route, navigation }) {
           <View style={styles.pillWrap}>
             <View style={styles.pill}>
               <Text style={styles.pillTexto}>
-                {encerrado ? 'Conversa encerrada' : 'Chat liberado após aceite mútuo'}
+                {encerrado
+                  ? 'Conversa encerrada'
+                  : iniciadoPor === 'TECNICO'
+                    ? 'Chat aberto pelo técnico'
+                    : 'Chat liberado após aceite do técnico'}
               </Text>
             </View>
           </View>
@@ -185,19 +221,32 @@ export default function ChatScreen({ route, navigation }) {
           </Text>
         </View>
       ) : (
-        <View style={styles.inputArea}>
-          <TextInput
-            style={styles.input}
-            placeholder="Digite uma mensagem..."
-            placeholderTextColor="#666"
-            value={texto}
-            onChangeText={setTexto}
-            onSubmitEditing={enviarMensagem}
-            returnKeyType="send"
-          />
-          <TouchableOpacity style={[styles.botaoEnviar, !texto.trim() && { opacity: 0.4 }]} onPress={enviarMensagem} disabled={!texto.trim()}>
-            <Text style={styles.botaoEnviarTexto}>➤</Text>
-          </TouchableOpacity>
+        <View>
+          {respondendoA && (
+            <View style={styles.respostaPreview}>
+              <View style={styles.respostaPreviewLinha}>
+                <Text style={styles.respostaPreviewAutor}>Respondendo a {respondendoA.autor.nome}</Text>
+                <Text style={styles.respostaPreviewTexto} numberOfLines={1}>{respondendoA.texto}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setRespondendoA(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={styles.respostaPreviewFechar}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.inputArea}>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite uma mensagem..."
+              placeholderTextColor="#666"
+              value={texto}
+              onChangeText={setTexto}
+              onSubmitEditing={enviarMensagem}
+              returnKeyType="send"
+            />
+            <TouchableOpacity style={[styles.botaoEnviar, !texto.trim() && { opacity: 0.4 }]} onPress={enviarMensagem} disabled={!texto.trim()}>
+              <Text style={styles.botaoEnviarTexto}>➤</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </KeyboardAvoidingView>
@@ -241,10 +290,33 @@ const styles = StyleSheet.create({
   bolhaOutra: { backgroundColor: '#151824', borderBottomLeftRadius: 4 },
   bolhaTexto: { color: '#d8dae0', fontSize: 15, lineHeight: 21 },
   bolhaTextoMinha: { color: '#fff' },
-  bolhaHora: { color: '#666', fontSize: 10, marginTop: 5, alignSelf: 'flex-end' },
+  bolhaRodape: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
+  bolhaHora: { color: '#666', fontSize: 10 },
   bolhaHoraMinha: { color: '#ffffff99' },
+  ticks: { color: '#ffffff99', fontSize: 12 },
+  ticksLida: { color: '#7dd3fc' },
+
+  citacao: {
+    borderLeftWidth: 3, borderLeftColor: '#5b8cff', backgroundColor: '#ffffff0d',
+    borderRadius: 6, paddingVertical: 5, paddingHorizontal: 8, marginBottom: 6,
+  },
+  citacaoMinha: { backgroundColor: '#ffffff22', borderLeftColor: '#fff' },
+  citacaoAutor: { color: '#5b8cff', fontSize: 11, fontWeight: '700' },
+  citacaoAutorMinha: { color: '#e8efff' },
+  citacaoTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
+  citacaoTextoMinha: { color: '#ffffffcc' },
 
   vazioTexto: { color: '#555', textAlign: 'center', marginTop: 40, fontSize: 14 },
+
+  respostaPreview: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#151824', paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: '#1e212c',
+  },
+  respostaPreviewLinha: { flex: 1, borderLeftWidth: 3, borderLeftColor: '#2d6fff', paddingLeft: 10 },
+  respostaPreviewAutor: { color: '#5b8cff', fontSize: 12, fontWeight: '700' },
+  respostaPreviewTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
+  respostaPreviewFechar: { color: '#666', fontSize: 16, paddingHorizontal: 8 },
 
   inputArea: {
     flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10,
