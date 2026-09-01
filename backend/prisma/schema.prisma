@@ -119,16 +119,27 @@ model ChatSessao {
   mensagens Mensagem[]
 }
 
+enum StatusMensagem {
+  ENVIADA
+  ENTREGUE
+  LIDA
+}
+
 model Mensagem {
   id        String   @id @default(uuid())
   texto     String
   criadoEm DateTime @default(now())
+  status    StatusMensagem @default(ENVIADA)
 
   autorId  String
   autor    Usuario    @relation(fields: [autorId], references: [id])
 
   sessaoId String
   sessao   ChatSessao @relation(fields: [sessaoId], references: [id])
+
+  respostaAId String?
+  respostaA   Mensagem?  @relation("RespostaMensagem", fields: [respostaAId], references: [id])
+  respostas   Mensagem[] @relation("RespostaMensagem")
 }
 
 model Avaliacao {
