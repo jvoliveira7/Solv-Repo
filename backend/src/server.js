@@ -39,6 +39,7 @@ app.use((err, req, res, next) => {
 });
 
 //Socket.io
+app.set('io', io);
 configurarSocket(io);
 
 const PORT = process.env.PORT || 3000;
