@@ -14,6 +14,7 @@ import NovoChamadoScreen from '../screens/user/NovoChamadoScreen';
 import DetalheChamadoScreen from '../screens/user/DetalheChamadoScreen';
 import GuidedModeScreen from '../screens/user/GuidedModeScreen';
 import ChatScreen from '../screens/ChatScreen';
+import ChatsListScreen from '../screens/ChatsListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PainelTecnicoScreen from '../screens/tech/PainelTecnicoScreen';
 import DetalheChamadoTecnicoScreen from '../screens/tech/DetalheChamadoTecnicoScreen';
@@ -46,10 +47,24 @@ function GuidedStack() {
   );
 }
 
+function ChatsStackUsuario() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="ListaChats" options={{ headerShown: false }}>
+        {(props) => <ChatsListScreen {...props} route={{ ...props.route, params: { isTecnico: false } }} />}
+      </Stack.Screen>
+      <Stack.Screen name="DetalheChamado" component={DetalheChamadoScreen} options={{ title: 'Chamado' }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+  );
+}
+
 const ICONE_POR_ABA = {
   HomeTab: '📋',
+  ChatsTab: '💬',
   GuidedTab: '🆘',
   PerfilTab: '👤',
+  PainelTab: '📋',
 };
 
 function TabIcone({ nomeAba, focused, color }) {
@@ -80,19 +95,53 @@ function UserTabs() {
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Chamados' }} />
+      <Tab.Screen name="ChatsTab" component={ChatsStackUsuario} options={{ tabBarLabel: 'Chats' }} />
       <Tab.Screen name="GuidedTab" component={GuidedStack} options={{ tabBarLabel: 'Guiado' }} />
       <Tab.Screen name="PerfilTab" component={ProfileScreen} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }
 
-function TechStack() {
+function PainelStack() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="Painel" component={PainelTecnicoScreen} options={{ title: 'Painel do Técnico' }} />
       <Stack.Screen name="DetalheChamadoTecnico" component={DetalheChamadoTecnicoScreen} options={{ title: 'Chamado' }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
+  );
+}
+
+function ChatsStackTecnico() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="ListaChats" options={{ headerShown: false }}>
+        {(props) => <ChatsListScreen {...props} route={{ ...props.route, params: { isTecnico: true } }} />}
+      </Stack.Screen>
+      <Stack.Screen name="DetalheChamadoTecnico" component={DetalheChamadoTecnicoScreen} options={{ title: 'Chamado' }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+  );
+}
+
+function TechTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: cores.fundo, borderTopColor: cores.divisor,
+          borderTopWidth: 1, height: 66, paddingBottom: 10, paddingTop: 8,
+        },
+        tabBarActiveTintColor: cores.azul,
+        tabBarInactiveTintColor: cores.textoTerciario,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarIcon: ({ focused, color }) => <TabIcone nomeAba={route.name} focused={focused} color={color} />,
+      })}
+    >
+      <Tab.Screen name="PainelTab" component={PainelStack} options={{ tabBarLabel: 'Painel' }} />
+      <Tab.Screen name="ChatsTab" component={ChatsStackTecnico} options={{ tabBarLabel: 'Chats' }} />
+    </Tab.Navigator>
   );
 }
 
@@ -119,7 +168,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      {!usuario ? <AuthStack /> : isTecnico ? <TechStack /> : <UserTabs />}
+      {!usuario ? <AuthStack /> : isTecnico ? <TechTabs /> : <UserTabs />}
     </NavigationContainer>
   );
 }
