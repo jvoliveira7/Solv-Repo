@@ -5,6 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, Text } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
+import { navigationRef } from './navigationRef';
+import { cores } from '../theme';
 
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/user/HomeScreen';
@@ -12,6 +14,7 @@ import NovoChamadoScreen from '../screens/user/NovoChamadoScreen';
 import DetalheChamadoScreen from '../screens/user/DetalheChamadoScreen';
 import GuidedModeScreen from '../screens/user/GuidedModeScreen';
 import ChatScreen from '../screens/ChatScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import PainelTecnicoScreen from '../screens/tech/PainelTecnicoScreen';
 import DetalheChamadoTecnicoScreen from '../screens/tech/DetalheChamadoTecnicoScreen';
 
@@ -30,7 +33,7 @@ function HomeStack() {
       <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Meus Chamados' }} />
       <Stack.Screen name="NovoChamado" component={NovoChamadoScreen} options={{ title: 'Novo Chamado' }} />
       <Stack.Screen name="DetalheChamado" component={DetalheChamadoScreen} options={{ title: 'Chamado' }} />
-      <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -43,27 +46,42 @@ function GuidedStack() {
   );
 }
 
+const ICONE_POR_ABA = {
+  HomeTab: '📋',
+  GuidedTab: '🆘',
+  PerfilTab: '👤',
+};
+
+function TabIcone({ nomeAba, focused, color }) {
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{
+        width: 20, height: 2, borderRadius: 1, marginBottom: 6,
+        backgroundColor: focused ? cores.azul : 'transparent',
+      }} />
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{ICONE_POR_ABA[nomeAba]}</Text>
+    </View>
+  );
+}
+
 function UserTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#0f1117', borderTopColor: '#2a2d3a', borderTopWidth: 1, height: 64, paddingBottom: 10 },
-        tabBarActiveTintColor: '#2d6fff',
-        tabBarInactiveTintColor: '#555',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-      }}
+        tabBarStyle: {
+          backgroundColor: cores.fundo, borderTopColor: cores.divisor,
+          borderTopWidth: 1, height: 66, paddingBottom: 10, paddingTop: 8,
+        },
+        tabBarActiveTintColor: cores.azul,
+        tabBarInactiveTintColor: cores.textoTerciario,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarIcon: ({ focused, color }) => <TabIcone nomeAba={route.name} focused={focused} color={color} />,
+      })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Chamados', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📋</Text> }} />
-      <Tab.Screen name="GuidedTab" component={GuidedStack} options={{
-        tabBarLabel: 'Guiado',
-        tabBarIcon: ({ color, focused }) => (
-          <View style={{ backgroundColor: focused ? '#2d6fff' : '#1a1d27', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: focused ? 0 : 1, borderColor: '#2a2d3a' }}>
-            <Text style={{ fontSize: 22 }}>🆘</Text>
-          </View>
-        ),
-      }} />
-      <Tab.Screen name="PerfilTab" component={HomeStack} options={{ tabBarLabel: 'Perfil', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }} />
+      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: 'Chamados' }} />
+      <Tab.Screen name="GuidedTab" component={GuidedStack} options={{ tabBarLabel: 'Guiado' }} />
+      <Tab.Screen name="PerfilTab" component={ProfileScreen} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );
 }
@@ -73,7 +91,7 @@ function TechStack() {
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="Painel" component={PainelTecnicoScreen} options={{ title: 'Painel do Técnico' }} />
       <Stack.Screen name="DetalheChamadoTecnico" component={DetalheChamadoTecnicoScreen} options={{ title: 'Chamado' }} />
-      <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -100,7 +118,7 @@ export default function AppNavigator() {
   const isTecnico = usuario?.perfil === 'TECNICO' || usuario?.perfil === 'ADMIN';
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!usuario ? <AuthStack /> : isTecnico ? <TechStack /> : <UserTabs />}
     </NavigationContainer>
   );
