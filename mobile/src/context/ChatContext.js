@@ -97,22 +97,6 @@ export function ChatProvider({ children }) {
         if (telaAtivaRef.current !== chamadoId) mostrarAlerta();
       };
 
-      socket.on('convite_chat', ({ sessaoId, chamadoId, chamadoTitulo, tecnico }) => {
-        dispatch({ type: 'SESSAO_ATUALIZADA', chamadoId, sessao: { id: sessaoId, status: 'PENDENTE', iniciadoPor: 'TECNICO' } });
-        alertaSeNaoEstiverNaTela(chamadoId, () => {
-          Alert.alert('💬 Convite de Chat', `${tecnico.nome} (TI) quer abrir um chat sobre "${chamadoTitulo}".`, [
-            { text: 'Recusar', style: 'destructive', onPress: () => socket.emit('recusar_chat', { sessaoId }) },
-            {
-              text: 'Aceitar',
-              onPress: () => {
-                socket.emit('aceitar_chat', { sessaoId });
-                navigate('Chat', { sessaoId, chamadoTitulo, contato: tecnico, isTecnico: false });
-              },
-            },
-          ]);
-        });
-      });
-
       socket.on('solicitacao_chat', ({ sessaoId, chamadoId, chamadoTitulo, solicitante }) => {
         dispatch({ type: 'SESSAO_ATUALIZADA', chamadoId, sessao: { id: sessaoId, status: 'PENDENTE', iniciadoPor: 'USUARIO' } });
         alertaSeNaoEstiverNaTela(chamadoId, () => {
@@ -129,13 +113,31 @@ export function ChatProvider({ children }) {
         });
       });
 
+      // Confirmação pro próprio usuário de que a solicitação foi registrada
+      // (sem isso, a tela nunca sabia que virou PENDENTE e ficava travada
+      // no botão "Solicitar chat" mesmo depois de já ter pedido).
+      socket.on('chat_solicitado', ({ sessaoId, chamadoId, status, iniciadoPor }) => {
+        if (chamadoId) {
+          dispatch({ type: 'SESSAO_ATUALIZADA', chamadoId, sessao: { id: sessaoId, status: status || 'PENDENTE', iniciadoPor: iniciadoPor || 'USUARIO' } });
+        }
+      });
+
+      // O técnico abriu chat direto — do lado do usuário, a sessão já nasce
+      // ATIVA (sem aceite). Avisa e permite abrir na hora.
       socket.on('chat_aceito', ({ sessaoId, chamadoId, contato }) => {
         dispatch({ type: 'SESSAO_ATUALIZADA', chamadoId, sessao: { id: sessaoId, status: 'ATIVA' } });
         alertaSeNaoEstiverNaTela(chamadoId, () => {
-          Alert.alert('✅ Chat aceito!', `${contato.nome} aceitou o chat.`, [
-            { text: 'Abrir Chat', onPress: () => navigate('Chat', { sessaoId, contato }) },
+          Alert.alert('💬 Chat aberto', `${contato.nome} (TI) abriu um chat com você.`, [
+            { text: 'Depois', style: 'cancel' },
+            { text: 'Abrir Chat', onPress: () => navigate('Chat', { sessaoId, contato, isTecnico: false }) },
           ]);
         });
+      });
+
+      // Confirmação pro próprio iniciador (técnico abrindo direto) — só
+      // atualiza a store; a navegação é feita pela tela que disparou.
+      socket.on('chat_iniciado', ({ sessaoId, chamadoId }) => {
+        dispatch({ type: 'SESSAO_ATUALIZADA', chamadoId, sessao: { id: sessaoId, status: 'ATIVA' } });
       });
 
       socket.on('chat_recusado', ({ chamadoId }) => {
@@ -158,7 +160,7 @@ export function ChatProvider({ children }) {
       mounted = false;
       const socket = socketRef.current;
       if (socket) {
-        ['convite_chat', 'solicitacao_chat', 'chat_aceito', 'chat_recusado', 'chat_encerrado', 'nova_mensagem'].forEach((e) => socket.off(e));
+        ['solicitacao_chat', 'chat_solicitado', 'chat_aceito', 'chat_iniciado', 'chat_recusado', 'chat_encerrado', 'nova_mensagem'].forEach((e) => socket.off(e));
       }
     };
   }, [usuario?.id]);
