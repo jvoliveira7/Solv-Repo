@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import api from '../../services/api';
-import { conectarSocket } from '../../services/socketService';
-import { useAuth } from '../../context/AuthContext';
-
+import { useChatSessao } from '../../hooks/useChatSessao';
 
 const STATUS_COR = {
   ABERTO: '#2d6fff', EM_ATENDIMENTO: '#f59e0b',
@@ -19,23 +17,19 @@ const STATUS_LABEL = {
 
 export default function DetalheChamadoScreen({ route, navigation }) {
   const { id } = route.params;
-  const { usuario } = useAuth();
   const [chamado, setChamado] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [comentario, setComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [solicitandoChat, setSolicitandoChat] = useState(false);
-  const [sessaoChat, setSessaoChat] = useState(null);
-  const socketRef = useRef(null);
+
+  // Toda a lógica e estado de chat vêm da store central — nada de state
+  // ou listener de socket duplicado aqui.
+  const { sessao: sessaoChat, solicitar, aceitar, recusar } = useChatSessao(id);
 
   async function carregarChamado() {
     try {
       const { data } = await api.get(`/chamados/${id}`);
       setChamado(data);
-
-      // Verifica se há sessão de chat ativa
-      const { data: chatData } = await api.get(`/chamados/${id}/chat`);
-      setSessaoChat(chatData.sessao);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar o chamado.');
     } finally {
@@ -45,66 +39,29 @@ export default function DetalheChamadoScreen({ route, navigation }) {
 
   useEffect(() => {
     carregarChamado();
-    configurarSocket();
-
-    return () => {
-      const socket = socketRef.current;
-      if (socket) {
-        socket.off('chat_aceito');
-        socket.off('chat_recusado');
-      }
-    };
+    const unsubscribe = navigation.addListener('focus', carregarChamado);
+    return unsubscribe;
   }, []);
 
-  async function configurarSocket() {
-    const socket = await conectarSocket();
-    socketRef.current = socket;
-
-    // Técnico aceitou o chat
-    socket.on('chat_aceito', ({ sessaoId, chamadoId, tecnico }) => {
-      if (chamadoId !== id) return;
-      setSolicitandoChat(false);
-      Alert.alert(
-        '✅ Chat aceito!',
-        `${tecnico.nome} aceitou sua solicitação.`,
-        [{
-          text: 'Abrir Chat',
-          onPress: () => navigation.navigate('Chat', {
-            sessaoId,
-            chamadoTitulo: chamado?.titulo,
-            contato: tecnico,
-            isTecnico: false,
-          }),
-        }]
-      );
-    });
-
-    // Técnico recusou o chat
-    socket.on('chat_recusado', ({ sessaoId }) => {
-      setSolicitandoChat(false);
-      setSessaoChat(null);
-      Alert.alert('Chat recusado', 'O técnico não está disponível para chat no momento.');
-    });
-  }
-
-  async function handleSolicitarChat() {
+  function handleSolicitarChat() {
     if (!chamado?.tecnicoId) {
       Alert.alert('Atenção', 'Este chamado ainda não tem um técnico atribuído.');
       return;
     }
-
-    setSolicitandoChat(true);
-    try {
-      const socket = socketRef.current || await conectarSocket();
-      socket.emit('solicitar_chat', { chamadoId: id });
-      Alert.alert('Solicitação enviada', 'Aguarde o técnico aceitar o chat.');
-    } catch {
-      setSolicitandoChat(false);
-      Alert.alert('Erro', 'Não foi possível solicitar o chat.');
-    }
+    solicitar();
   }
 
-  async function handleAbrirChat() {
+  function handleAbrirChat() {
+    navigation.navigate('Chat', {
+      sessaoId: sessaoChat.id,
+      chamadoTitulo: chamado?.titulo,
+      contato: chamado?.tecnico,
+      isTecnico: false,
+    });
+  }
+
+  function handleAceitarConvite() {
+    aceitar();
     navigation.navigate('Chat', {
       sessaoId: sessaoChat.id,
       chamadoTitulo: chamado?.titulo,
@@ -140,6 +97,11 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   const podeChat = chamado.status === 'EM_ATENDIMENTO' && chamado.tecnicoId;
   const chatAtivo = sessaoChat?.status === 'ATIVA';
   const chatPendente = sessaoChat?.status === 'PENDENTE';
+  const chatHistorico = sessaoChat?.status === 'ENCERRADA';
+  // PENDENTE pode ter sido criada pelo usuário (aguardando o técnico) OU
+  // pelo técnico (o usuário é quem precisa responder).
+  const convitePendenteRecebido = chatPendente && sessaoChat.iniciadoPor === 'TECNICO';
+  const convitePendenteEnviado = chatPendente && sessaoChat.iniciadoPor === 'USUARIO';
 
   return (
     <KeyboardAvoidingView
@@ -169,7 +131,21 @@ export default function DetalheChamadoScreen({ route, navigation }) {
               <TouchableOpacity style={styles.botaoChat} onPress={handleAbrirChat}>
                 <Text style={styles.botaoChatTexto}>💬 Abrir Chat</Text>
               </TouchableOpacity>
-            ) : chatPendente || solicitandoChat ? (
+            ) : convitePendenteRecebido ? (
+              <View>
+                <Text style={styles.convitePergunta}>
+                  💬 {chamado.tecnico?.nome || 'O técnico'} quer abrir um chat com você.
+                </Text>
+                <View style={styles.conviteBotoes}>
+                  <TouchableOpacity style={[styles.botaoConvite, styles.botaoRecusar]} onPress={recusar}>
+                    <Text style={styles.botaoConviteTexto}>Recusar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.botaoConvite, styles.botaoAceitar]} onPress={handleAceitarConvite}>
+                    <Text style={styles.botaoConviteTexto}>Aceitar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : convitePendenteEnviado ? (
               <View style={[styles.botaoChat, styles.botaoChatPendente]}>
                 <ActivityIndicator size="small" color="#f59e0b" style={{ marginRight: 8 }} />
                 <Text style={[styles.botaoChatTexto, { color: '#f59e0b' }]}>Aguardando técnico...</Text>
@@ -179,6 +155,15 @@ export default function DetalheChamadoScreen({ route, navigation }) {
                 <Text style={styles.botaoChatTexto}>💬 Solicitar Chat com Técnico</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {/* Histórico de chat, disponível mesmo após o chamado ser resolvido/fechado */}
+        {chatHistorico && (
+          <View style={styles.chatContainer}>
+            <TouchableOpacity style={[styles.botaoChat, styles.botaoChatHistorico]} onPress={handleAbrirChat}>
+              <Text style={[styles.botaoChatTexto, { color: '#888' }]}>📄 Ver histórico do chat</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -253,7 +238,14 @@ const styles = StyleSheet.create({
   },
   botaoChatSolicitar: { backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#2d6fff' },
   botaoChatPendente: { backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#f59e0b' },
+  botaoChatHistorico: { backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#2a2d3a' },
   botaoChatTexto: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  convitePergunta: { color: '#fff', fontSize: 14, marginBottom: 10 },
+  conviteBotoes: { flexDirection: 'row', gap: 10 },
+  botaoConvite: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  botaoRecusar: { backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#ef4444' },
+  botaoAceitar: { backgroundColor: '#2d6fff' },
+  botaoConviteTexto: { color: '#fff', fontSize: 14, fontWeight: '600' },
   comentario: {
     backgroundColor: '#1a1d27', borderRadius: 10, padding: 14,
     marginBottom: 10, borderWidth: 1, borderColor: '#2a2d3a',
