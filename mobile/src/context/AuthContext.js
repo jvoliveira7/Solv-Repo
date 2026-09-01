@@ -54,13 +54,20 @@ export function AuthProvider({ children }) {
     return data.usuario;
   }
 
+  async function registrar({ nome, email, senha, setor }) {
+    const { data } = await api.post('/auth/registro', { nome, email, senha, setor });
+    await saveAuth(data.token, data.usuario);
+    dispatch({ type: 'LOGIN', usuario: data.usuario, token: data.token });
+    return data.usuario;
+  }
+
   async function logout() {
     await clearAuth();
     dispatch({ type: 'LOGOUT' });
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, registrar, logout }}>
       {children}
     </AuthContext.Provider>
   );

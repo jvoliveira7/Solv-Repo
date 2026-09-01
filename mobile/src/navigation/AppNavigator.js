@@ -9,6 +9,7 @@ import { navigationRef } from './navigationRef';
 import { cores } from '../theme';
 
 import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/user/HomeScreen';
 import NovoChamadoScreen from '../screens/user/NovoChamadoScreen';
 import DetalheChamadoScreen from '../screens/user/DetalheChamadoScreen';
@@ -149,6 +150,7 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 }

@@ -4,7 +4,7 @@ const prisma = require('../config/prisma');
 
 //POST /api/auth/registro
 async function registro(req, res) {
-  const { nome, email, senha, setor, perfil } = req.body;
+  const { nome, email, senha, setor } = req.body;
 
   if (!nome || !email || !senha) {
     return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
@@ -24,7 +24,9 @@ async function registro(req, res) {
         email,
         senha: senhaHash,
         setor: setor || null,
-        perfil: perfil || 'USUARIO',
+        // Registro público nunca aceita perfil vindo do cliente — sempre
+        // USUARIO. TECNICO/ADMIN só são criados por um administrador.
+        perfil: 'USUARIO',
       },
       select: {
         id: true,
