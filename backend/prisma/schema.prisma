@@ -82,6 +82,11 @@ enum StatusChat {
   ENCERRADA
 }
 
+enum IniciadoPor {
+  USUARIO
+  TECNICO
+}
+
 model Comentario {
   id        String   @id @default(uuid())
   texto     String
@@ -98,6 +103,9 @@ model ChatSessao {
   id        String     @id @default(uuid())
   status    StatusChat @default(PENDENTE)
   criadoEm DateTime   @default(now())
+
+  iniciadoPor            IniciadoPor @default(USUARIO)
+  encerradoPorResolucao  Boolean     @default(false)
 
   chamadoId String   @unique
   chamado   Chamado  @relation(fields: [chamadoId], references: [id])
