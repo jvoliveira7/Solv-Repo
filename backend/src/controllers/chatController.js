@@ -16,11 +16,10 @@ async function buscarSessao(req, res) {
 
     if (!temAcesso) return res.status(403).json({ erro: 'Acesso negado' });
 
+    // Retorna a sessão mais recente independente do status — uma ENCERRADA
+    // continua acessível como histórico read-only (não é ocultada nem apagada)
     const sessao = await prisma.chatSessao.findFirst({
-      where: {
-        chamadoId,
-        status: { in: ['PENDENTE', 'ATIVA'] },
-      },
+      where: { chamadoId },
       orderBy: { criadoEm: 'desc' },
     });
 

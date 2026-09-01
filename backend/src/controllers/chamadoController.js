@@ -42,7 +42,7 @@ async function listar(req, res) {
     where.solicitanteId = id;
   }
 
-  if (status) where.status = status;
+  if (status) where.status = status.includes(',') ? { in: status.split(',') } : status;
   if (categoria) where.categoria = categoria;
   if (prioridade) where.prioridade = prioridade;
 
@@ -53,6 +53,7 @@ async function listar(req, res) {
       include: {
         solicitante: { select: { id: true, nome: true, setor: true } },
         tecnico: { select: { id: true, nome: true } },
+        chat: { select: { status: true } },
         _count: { select: { comentarios: true } },
       },
     });
@@ -137,6 +138,27 @@ async function atualizarStatus(req, res) {
           chamadoId: id,
         },
       });
+    }
+
+    // Ao resolver/fechar, o chat (se ativo) vira histórico read-only — nunca é apagado
+    if (status === 'RESOLVIDO' || status === 'FECHADO') {
+      const sessaoAtiva = await prisma.chatSessao.findFirst({
+        where: { chamadoId: id, status: 'ATIVA' },
+      });
+
+      if (sessaoAtiva) {
+        await prisma.chatSessao.update({
+          where: { id: sessaoAtiva.id },
+          data: { status: 'ENCERRADA', encerradoPorResolucao: true },
+        });
+
+        const io = req.app.get('io');
+        io.to(`chat:${sessaoAtiva.id}`).emit('chat_encerrado', {
+          sessaoId: sessaoAtiva.id,
+          chamadoId: id,
+          encerradoPorResolucao: true,
+        });
+      }
     }
 
     return res.json(atualizado);
