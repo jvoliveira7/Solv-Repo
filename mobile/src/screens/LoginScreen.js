@@ -5,6 +5,7 @@ import {
   Platform, Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { cores, espaco, raio, comum } from '../theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -34,13 +35,15 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>Solv</Text>
-        <Text style={styles.subtitle}>Suporte de TI simplificado</Text>
+        <Text style={styles.logo}>
+          Solv<Text style={styles.logoPonto}>.</Text>
+        </Text>
+        <Text style={styles.subtitle}>Suporte técnico que qualquer um consegue usar</Text>
 
         <TextInput
           style={styles.input}
           placeholder="E-mail"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.placeholder}
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
@@ -50,7 +53,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Senha"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.placeholder}
           secureTextEntry
           value={senha}
           onChangeText={setSenha}
@@ -72,52 +75,19 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f1117',
-  },
-  inner: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
+  container: { flex: 1, backgroundColor: cores.fundo },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
   logo: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#2d6fff',
-    textAlign: 'center',
-    marginBottom: 8,
+    fontSize: 44, fontWeight: '800', color: cores.texto,
+    textAlign: 'center', marginBottom: 10, letterSpacing: -1,
   },
+  logoPonto: { color: cores.azul },
   subtitle: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 48,
+    fontSize: 14, color: cores.textoSecundario,
+    textAlign: 'center', marginBottom: 48, paddingHorizontal: 20,
   },
-  input: {
-    backgroundColor: '#1a1d27',
-    borderWidth: 1,
-    borderColor: '#2a2d3a',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  botao: {
-    backgroundColor: '#2d6fff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  botaoDesabilitado: {
-    opacity: 0.6,
-  },
-  botaoTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  input: { ...comum.input, marginBottom: espaco.lg, paddingVertical: 14, fontSize: 16 },
+  botao: { ...comum.botaoPrimario, marginTop: espaco.xs, paddingVertical: 16 },
+  botaoDesabilitado: { opacity: 0.6 },
+  botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
 });

@@ -6,33 +6,32 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { cores, espaco, raio, statusCor, statusLabel, prioridadeCor } from '../../theme';
+import { tempoRelativo } from '../../utils/tempoRelativo';
 
-const PRIORIDADE_COR = {
-  CRITICA: '#7c3aed', ALTA: '#ef4444', MEDIA: '#f59e0b', BAIXA: '#10b981',
+const FILTROS = ['ABERTO', 'EM_ATENDIMENTO', 'RESOLVIDO'];
+const FILTRO_STATUS = {
+  ABERTO: 'ABERTO',
+  EM_ATENDIMENTO: 'EM_ATENDIMENTO,AGUARDANDO',
+  RESOLVIDO: 'RESOLVIDO,FECHADO',
 };
-const STATUS_COR = {
-  ABERTO: '#2d6fff', EM_ATENDIMENTO: '#f59e0b',
-  AGUARDANDO: '#8b5cf6', RESOLVIDO: '#10b981', FECHADO: '#6b7280',
-};
-const STATUS_LABEL = {
-  ABERTO: 'Aberto', EM_ATENDIMENTO: 'Em atendimento',
-  AGUARDANDO: 'Aguardando', RESOLVIDO: 'Resolvido', FECHADO: 'Fechado',
-};
+const FILTRO_LABEL = { ABERTO: 'Abertos', EM_ATENDIMENTO: 'Em andamento', RESOLVIDO: 'Resolvidos' };
 
-const FILTROS = ['TODOS', 'ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO', 'RESOLVIDO'];
+function iniciais(nome = '') {
+  const partes = nome.trim().split(' ');
+  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
+}
 
 export default function PainelTecnicoScreen({ navigation }) {
   const { usuario, logout } = useAuth();
   const [chamados, setChamados] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
-  const [filtro, setFiltro] = useState('TODOS');
+  const [filtro, setFiltro] = useState('ABERTO');
 
   async function carregarChamados() {
     try {
-      const params = filtro !== 'TODOS' ? { status: filtro } : {};
-      const { data } = await api.get('/chamados', { params });
-      // Ordena: CRITICA → ALTA → MEDIA → BAIXA
+      const { data } = await api.get('/chamados', { params: { status: FILTRO_STATUS[filtro] } });
       const ordem = { CRITICA: 0, ALTA: 1, MEDIA: 2, BAIXA: 3 };
       data.sort((a, b) => (ordem[a.prioridade] ?? 4) - (ordem[b.prioridade] ?? 4));
       setChamados(data);
@@ -47,25 +46,45 @@ export default function PainelTecnicoScreen({ navigation }) {
   useFocusEffect(useCallback(() => { carregarChamados(); }, [filtro]));
 
   function renderChamado({ item }) {
+    const chatDisponivel = item.chat?.status === 'ATIVA' || item.chat?.status === 'PENDENTE';
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() => navigation.navigate('DetalheChamadoTecnico', { id: item.id })}
       >
-        <View style={styles.cardHeader}>
-          <View style={[styles.prioridadeDot, { backgroundColor: PRIORIDADE_COR[item.prioridade] }]} />
-          <Text style={styles.cardTitulo} numberOfLines={1}>{item.titulo}</Text>
-          <View style={[styles.badge, { backgroundColor: STATUS_COR[item.status] + '22' }]}>
-            <Text style={[styles.badgeTexto, { color: STATUS_COR[item.status] }]}>
-              {STATUS_LABEL[item.status]}
-            </Text>
+        <View style={styles.cardTopo}>
+          <View style={[styles.faixaPrioridade, { backgroundColor: prioridadeCor[item.prioridade] }]} />
+          <View style={styles.cardConteudo}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitulo} numberOfLines={2}>{item.titulo}</Text>
+              <View style={[styles.badge, { backgroundColor: prioridadeCor[item.prioridade] + '22' }]}>
+                <Text style={[styles.badgeTexto, { color: prioridadeCor[item.prioridade] }]}>
+                  {item.prioridade}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.solicitanteLinha}>
+              <View style={styles.avatarPequeno}>
+                <Text style={styles.avatarPequenoTexto}>{iniciais(item.solicitante.nome)}</Text>
+              </View>
+              <Text style={styles.cardInfo}>{item.solicitante.nome} · {tempoRelativo(item.criadoEm)}</Text>
+            </View>
+
+            <View style={styles.cardRodape}>
+              <View style={[styles.badge, { backgroundColor: statusCor[item.status] + '22' }]}>
+                <Text style={[styles.badgeTexto, { color: statusCor[item.status] }]}>
+                  {statusLabel[item.status]}
+                </Text>
+              </View>
+              {chatDisponivel && (
+                <Text style={styles.chatDisponivel}>💬 Chat disponível</Text>
+              )}
+              {item._count.comentarios > 0 && (
+                <Text style={styles.cardComentarios}>📝 {item._count.comentarios}</Text>
+              )}
+            </View>
           </View>
-        </View>
-        <Text style={styles.cardInfo}>{item.solicitante.nome} · {item.categoria}</Text>
-        {item.localizacao && <Text style={styles.cardInfo}>📍 {item.localizacao}</Text>}
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardData}>{new Date(item.criadoEm).toLocaleDateString('pt-BR')}</Text>
-          <Text style={styles.cardComentarios}>💬 {item._count.comentarios}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -74,48 +93,49 @@ export default function PainelTecnicoScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.cabecalho}>
-        <Text style={styles.bemVindo}>Olá, {usuario?.nome?.split(' ')[0]} 🔧</Text>
-        <TouchableOpacity onPress={logout}>
-          <Text style={styles.sair}>Sair</Text>
+        <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
+        <TouchableOpacity
+          onPress={() => Alert.alert('Sair da conta?', '', [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Sair', style: 'destructive', onPress: logout },
+          ])}
+          style={styles.avatarGrande}
+        >
+          <Text style={styles.avatarGrandeTexto}>{iniciais(usuario?.nome)}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Filtros */}
-      <FlatList
-        horizontal
-        data={FILTROS}
-        keyExtractor={(item) => item}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtros}
-        renderItem={({ item }) => (
+      <View style={styles.abas}>
+        {FILTROS.map((item) => (
           <TouchableOpacity
-            style={[styles.filtro, filtro === item && styles.filtroAtivo]}
+            key={item}
+            style={[styles.aba, filtro === item && styles.abaAtiva]}
             onPress={() => setFiltro(item)}
           >
-            <Text style={[styles.filtroTexto, filtro === item && styles.filtroTextoAtivo]}>
-              {item === 'TODOS' ? 'Todos' : STATUS_LABEL[item]}
+            <Text style={[styles.abaTexto, filtro === item && styles.abaTextoAtiva]}>
+              {FILTRO_LABEL[item]}
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </View>
 
       {carregando
-        ? <ActivityIndicator size="large" color="#2d6fff" style={{ marginTop: 40 }} />
+        ? <ActivityIndicator size="large" color={cores.azul} style={{ marginTop: 40 }} />
         : (
           <FlatList
             data={chamados}
             keyExtractor={(item) => item.id}
             renderItem={renderChamado}
-            contentContainerStyle={chamados.length === 0 && styles.listaVazia}
+            contentContainerStyle={chamados.length === 0 ? styles.listaVazia : styles.lista}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}
                 onRefresh={() => { setAtualizando(true); carregarChamados(); }}
-                tintColor="#2d6fff"
+                tintColor={cores.azul}
               />
             }
             ListEmptyComponent={
-              <Text style={styles.vazioTexto}>Nenhum chamado encontrado.</Text>
+              <Text style={styles.vazioTexto}>Nenhum chamado nesse filtro.</Text>
             }
           />
         )
@@ -125,35 +145,52 @@ export default function PainelTecnicoScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1117' },
+  container: { flex: 1, backgroundColor: cores.fundo },
   cabecalho: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 16,
+    alignItems: 'center', paddingHorizontal: espaco.xl, paddingTop: 16, paddingBottom: 12,
   },
-  bemVindo: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  sair: { color: '#2d6fff', fontSize: 14 },
-  filtros: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
-  filtro: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    borderWidth: 1, borderColor: '#2a2d3a', backgroundColor: '#1a1d27',
+  logo: { color: cores.texto, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  avatarGrande: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: cores.roxo,
+    justifyContent: 'center', alignItems: 'center',
   },
-  filtroAtivo: { backgroundColor: '#2d6fff22', borderColor: '#2d6fff' },
-  filtroTexto: { color: '#888', fontSize: 13 },
-  filtroTextoAtivo: { color: '#2d6fff', fontWeight: '600' },
+  avatarGrandeTexto: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  abas: { flexDirection: 'row', paddingHorizontal: espaco.lg, gap: 8, marginBottom: 8 },
+  aba: {
+    flex: 1, paddingVertical: 10, borderRadius: raio.md, alignItems: 'center',
+    backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda,
+  },
+  abaAtiva: { backgroundColor: cores.azulSuave, borderColor: cores.azul },
+  abaTexto: { color: cores.textoSecundario, fontSize: 12, fontWeight: '600' },
+  abaTextoAtiva: { color: cores.azulClaro },
+
+  lista: { padding: espaco.lg, paddingTop: 4 },
   card: {
-    backgroundColor: '#1a1d27', borderRadius: 12, padding: 16,
-    marginHorizontal: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: '#2a2d3a',
+    backgroundColor: cores.card, borderRadius: raio.lg,
+    marginBottom: 12, borderWidth: 1, borderColor: cores.cardBorda, overflow: 'hidden',
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  prioridadeDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  cardTitulo: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1, marginRight: 8 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  badgeTexto: { fontSize: 11, fontWeight: '600' },
-  cardInfo: { color: '#888', fontSize: 12, marginBottom: 4 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  cardData: { color: '#555', fontSize: 11 },
-  cardComentarios: { color: '#555', fontSize: 11 },
+  cardTopo: { flexDirection: 'row' },
+  faixaPrioridade: { width: 4 },
+  cardConteudo: { flex: 1, padding: espaco.lg },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 10 },
+  cardTitulo: { color: cores.texto, fontSize: 15, fontWeight: '700', flex: 1 },
+  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: raio.sm, alignSelf: 'flex-start' },
+  badgeTexto: { fontSize: 10, fontWeight: '700' },
+
+  solicitanteLinha: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  avatarPequeno: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: cores.cardBorda,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarPequenoTexto: { color: cores.textoSecundario, fontSize: 9, fontWeight: '700' },
+  cardInfo: { color: cores.textoSecundario, fontSize: 12 },
+
+  cardRodape: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  chatDisponivel: { color: cores.azulClaro, fontSize: 12, fontWeight: '600' },
+  cardComentarios: { color: cores.textoTerciario, fontSize: 12 },
+
   listaVazia: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  vazioTexto: { color: '#555', fontSize: 15 },
+  vazioTexto: { color: cores.textoTerciario, fontSize: 15 },
 });

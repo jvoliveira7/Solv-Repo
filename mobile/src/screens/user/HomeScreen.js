@@ -6,22 +6,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { cores, espaco, raio, statusCor, statusLabel } from '../../theme';
+import { tempoRelativo } from '../../utils/tempoRelativo';
 
-const STATUS_COR = {
-  ABERTO: '#2d6fff',
-  EM_ATENDIMENTO: '#f59e0b',
-  AGUARDANDO: '#8b5cf6',
-  RESOLVIDO: '#10b981',
-  FECHADO: '#6b7280',
-};
-
-const STATUS_LABEL = {
-  ABERTO: 'Aberto',
-  EM_ATENDIMENTO: 'Em atendimento',
-  AGUARDANDO: 'Aguardando',
-  RESOLVIDO: 'Resolvido',
-  FECHADO: 'Fechado',
-};
+function iniciais(nome = '') {
+  const partes = nome.trim().split(' ');
+  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
+}
 
 export default function HomeScreen({ navigation }) {
   const { usuario, logout } = useAuth();
@@ -41,11 +32,7 @@ export default function HomeScreen({ navigation }) {
     }
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      carregarChamados();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { carregarChamados(); }, []));
 
   function renderChamado({ item }) {
     return (
@@ -55,9 +42,9 @@ export default function HomeScreen({ navigation }) {
       >
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitulo} numberOfLines={1}>{item.titulo}</Text>
-          <View style={[styles.badge, { backgroundColor: STATUS_COR[item.status] + '22' }]}>
-            <Text style={[styles.badgeTexto, { color: STATUS_COR[item.status] }]}>
-              {STATUS_LABEL[item.status]}
+          <View style={[styles.badge, { backgroundColor: statusCor[item.status] + '22' }]}>
+            <Text style={[styles.badgeTexto, { color: statusCor[item.status] }]}>
+              {statusLabel[item.status]}
             </Text>
           </View>
         </View>
@@ -65,9 +52,7 @@ export default function HomeScreen({ navigation }) {
         {item.localizacao && (
           <Text style={styles.cardLocalizacao}>📍 {item.localizacao}</Text>
         )}
-        <Text style={styles.cardData}>
-          {new Date(item.criadoEm).toLocaleDateString('pt-BR')}
-        </Text>
+        <Text style={styles.cardData}>{tempoRelativo(item.criadoEm)}</Text>
       </TouchableOpacity>
     );
   }
@@ -75,7 +60,7 @@ export default function HomeScreen({ navigation }) {
   if (carregando) {
     return (
       <View style={styles.centro}>
-        <ActivityIndicator size="large" color="#2d6fff" />
+        <ActivityIndicator size="large" color={cores.azul} />
       </View>
     );
   }
@@ -83,9 +68,12 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.cabecalho}>
-        <Text style={styles.bemVindo}>Olá, {usuario?.nome?.split(' ')[0]} 👋</Text>
-        <TouchableOpacity onPress={logout}>
-          <Text style={styles.sair}>Sair</Text>
+        <View>
+          <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
+          <Text style={styles.bemVindo}>Olá, {usuario?.nome?.split(' ')[0]}</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('PerfilTab')} style={styles.avatar}>
+          <Text style={styles.avatarTexto}>{iniciais(usuario?.nome)}</Text>
         </TouchableOpacity>
       </View>
 
@@ -93,12 +81,12 @@ export default function HomeScreen({ navigation }) {
         data={chamados}
         keyExtractor={(item) => item.id}
         renderItem={renderChamado}
-        contentContainerStyle={chamados.length === 0 && styles.listaVazia}
+        contentContainerStyle={chamados.length === 0 ? styles.listaVazia : styles.lista}
         refreshControl={
           <RefreshControl
             refreshing={atualizando}
             onRefresh={() => { setAtualizando(true); carregarChamados(); }}
-            tintColor="#2d6fff"
+            tintColor={cores.azul}
           />
         }
         ListEmptyComponent={
@@ -110,38 +98,43 @@ export default function HomeScreen({ navigation }) {
         style={styles.fab}
         onPress={() => navigation.navigate('NovoChamado')}
       >
-        <Text style={styles.fabTexto}>+ Novo Chamado</Text>
+        <Text style={styles.fabTexto}>+ Novo chamado</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1117' },
-  centro: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f1117' },
+  container: { flex: 1, backgroundColor: cores.fundo },
+  centro: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: cores.fundo },
   cabecalho: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 16,
+    alignItems: 'center', padding: espaco.xl, paddingTop: 16,
   },
-  bemVindo: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  sair: { color: '#2d6fff', fontSize: 14 },
-  card: {
-    backgroundColor: '#1a1d27', borderRadius: 12, padding: 16,
-    marginHorizontal: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: '#2a2d3a',
+  logo: { color: cores.texto, fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  bemVindo: { color: cores.textoSecundario, fontSize: 13, marginTop: 2 },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: cores.azul,
+    justifyContent: 'center', alignItems: 'center',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardTitulo: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1, marginRight: 8 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  badgeTexto: { fontSize: 11, fontWeight: '600' },
-  cardCategoria: { color: '#888', fontSize: 12, marginBottom: 4 },
-  cardLocalizacao: { color: '#888', fontSize: 12, marginBottom: 4 },
-  cardData: { color: '#555', fontSize: 11 },
+  avatarTexto: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  lista: { paddingHorizontal: espaco.lg, paddingBottom: 90 },
+  card: { ...{ backgroundColor: cores.card, borderRadius: raio.lg, padding: espaco.lg, marginBottom: 12, borderWidth: 1, borderColor: cores.cardBorda } },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8 },
+  cardTitulo: { color: cores.texto, fontSize: 15, fontWeight: '700', flex: 1 },
+  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: raio.sm },
+  badgeTexto: { fontSize: 11, fontWeight: '700' },
+  cardCategoria: { color: cores.textoSecundario, fontSize: 12, marginBottom: 4 },
+  cardLocalizacao: { color: cores.textoSecundario, fontSize: 12, marginBottom: 4 },
+  cardData: { color: cores.textoTerciario, fontSize: 11 },
   listaVazia: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  vazioTexto: { color: '#555', fontSize: 15 },
+  vazioTexto: { color: cores.textoTerciario, fontSize: 15 },
+
   fab: {
-    backgroundColor: '#2d6fff', margin: 16, borderRadius: 12,
+    position: 'absolute', left: 16, right: 16, bottom: 16,
+    backgroundColor: cores.azul, borderRadius: raio.md,
     paddingVertical: 16, alignItems: 'center',
   },
-  fabTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  fabTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

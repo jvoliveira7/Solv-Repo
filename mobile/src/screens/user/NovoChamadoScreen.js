@@ -4,15 +4,23 @@ import {
   ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import api from '../../services/api';
+import { cores, espaco, raio, comum } from '../../theme';
 
-const CATEGORIAS = ['HARDWARE', 'SOFTWARE', 'REDE', 'ACESSO', 'IMPRESSORA', 'OUTRO'];
+const CATEGORIAS = [
+  { valor: 'HARDWARE', label: 'Hardware', icone: '🖥️' },
+  { valor: 'SOFTWARE', label: 'Software', icone: '💾' },
+  { valor: 'REDE', label: 'Rede', icone: '📶' },
+  { valor: 'ACESSO', label: 'Acesso', icone: '🔑' },
+  { valor: 'IMPRESSORA', label: 'Impressora', icone: '🖨️' },
+  { valor: 'OUTRO', label: 'Outro', icone: '⋯' },
+];
 const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA', 'CRITICA'];
 
 const PRIORIDADE_COR = {
-  BAIXA: '#10b981',
-  MEDIA: '#f59e0b',
-  ALTA: '#ef4444',
-  CRITICA: '#7c3aed',
+  BAIXA: cores.sucesso,
+  MEDIA: cores.aviso,
+  ALTA: cores.erro,
+  CRITICA: cores.roxo,
 };
 
 export default function NovoChamadoScreen({ navigation }) {
@@ -36,51 +44,58 @@ export default function NovoChamadoScreen({ navigation }) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-  console.log('ERRO COMPLETO:', JSON.stringify(err.message));
-  console.log('RESPONSE:', JSON.stringify(err.response?.data));
-  const mensagem = err.response?.data?.erro || err.message || 'Erro ao abrir chamado.';
-  Alert.alert('Erro', mensagem);
-}
-
+      const mensagem = err.response?.data?.erro || err.message || 'Erro ao abrir chamado.';
+      Alert.alert('Erro', mensagem);
+    } finally {
+      setCarregando(false);
+    }
   }
-
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-      <Text style={styles.label}>Título *</Text>
+      <TouchableOpacity style={styles.bannerGuiado} onPress={() => navigation.navigate('GuidedTab', { screen: 'GuidedMode' })}>
+        <Text style={styles.bannerGuiadoIcone}>✨</Text>
+        <Text style={styles.bannerGuiadoTexto}>Prefere ser guiado passo a passo?</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.label}>Título do problema</Text>
       <TextInput
         style={styles.input}
-        placeholder="Descreva o problema brevemente"
-        placeholderTextColor="#555"
+        placeholder="Ex: Impressora não imprime"
+        placeholderTextColor={cores.placeholder}
         value={titulo}
         onChangeText={setTitulo}
       />
 
-      <Text style={styles.label}>Descrição *</Text>
+      <Text style={styles.label}>Descrição</Text>
       <TextInput
         style={[styles.input, styles.inputMultilinha]}
-        placeholder="Detalhe o que está acontecendo..."
-        placeholderTextColor="#555"
+        placeholder="Descreva o que está acontecendo"
+        placeholderTextColor={cores.placeholder}
         multiline
         numberOfLines={4}
         value={descricao}
         onChangeText={setDescricao}
       />
 
-      <Text style={styles.label}>Categoria *</Text>
-      <View style={styles.opcoes}>
-        {CATEGORIAS.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.opcao, categoria === cat && styles.opcaoSelecionada]}
-            onPress={() => setCategoria(cat)}
-          >
-            <Text style={[styles.opcaoTexto, categoria === cat && styles.opcaoTextoSelecionado]}>
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <Text style={styles.label}>Categoria</Text>
+      <View style={styles.gradeCategorias}>
+        {CATEGORIAS.map((cat) => {
+          const selecionada = categoria === cat.valor;
+          return (
+            <TouchableOpacity
+              key={cat.valor}
+              style={[styles.cardCategoria, selecionada && styles.cardCategoriaSelecionada]}
+              onPress={() => setCategoria(cat.valor)}
+            >
+              <Text style={styles.cardCategoriaIcone}>{cat.icone}</Text>
+              <Text style={[styles.cardCategoriaTexto, selecionada && styles.cardCategoriaTextoSelecionado]}>
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <Text style={styles.label}>Prioridade</Text>
@@ -104,11 +119,11 @@ export default function NovoChamadoScreen({ navigation }) {
         ))}
       </View>
 
-      <Text style={styles.label}>Localização</Text>
+      <Text style={styles.label}>Localização (opcional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="Ex: Secretaria de Educação, Sala 3"
-        placeholderTextColor="#555"
+        placeholder="📍 Ex: Sala 12, 2º andar"
+        placeholderTextColor={cores.placeholder}
         value={localizacao}
         onChangeText={setLocalizacao}
       />
@@ -120,7 +135,7 @@ export default function NovoChamadoScreen({ navigation }) {
       >
         {carregando
           ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.botaoTexto}>Abrir Chamado</Text>
+          : <Text style={styles.botaoTexto}>Enviar chamado</Text>
         }
       </TouchableOpacity>
 
@@ -129,29 +144,42 @@ export default function NovoChamadoScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1117' },
-  content: { padding: 20, paddingBottom: 40 },
-  label: { color: '#aaa', fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 16 },
-  input: {
-    backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#2a2d3a',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
-    color: '#fff', fontSize: 15,
+  container: { flex: 1, backgroundColor: cores.fundo },
+  content: { padding: espaco.xl, paddingBottom: 40 },
+
+  bannerGuiado: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: cores.azulSuave, borderWidth: 1, borderColor: cores.azul,
+    borderRadius: raio.md, paddingVertical: 13, marginBottom: espaco.xl,
   },
+  bannerGuiadoIcone: { fontSize: 15 },
+  bannerGuiadoTexto: { color: cores.azulClaro, fontSize: 14, fontWeight: '600' },
+
+  label: {
+    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8, marginTop: 18,
+  },
+  input: { ...comum.input },
   inputMultilinha: { height: 100, textAlignVertical: 'top' },
+
+  gradeCategorias: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cardCategoria: {
+    width: '31%', backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda,
+    borderRadius: raio.md, paddingVertical: 16, alignItems: 'center', gap: 6,
+  },
+  cardCategoriaSelecionada: { backgroundColor: cores.azulSuave, borderColor: cores.azul },
+  cardCategoriaIcone: { fontSize: 22 },
+  cardCategoriaTexto: { color: cores.textoSecundario, fontSize: 12, fontWeight: '600' },
+  cardCategoriaTextoSelecionado: { color: cores.azulClaro },
+
   opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   opcao: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1, borderColor: '#2a2d3a', backgroundColor: '#1a1d27',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: raio.sm,
+    borderWidth: 1, borderColor: cores.cardBorda, backgroundColor: cores.card,
   },
-  opcaoSelecionada: { backgroundColor: '#2d6fff22', borderColor: '#2d6fff' },
-  opcaoTexto: { color: '#888', fontSize: 13, fontWeight: '500' },
-  opcaoTextoSelecionado: { color: '#2d6fff' },
-  botao: {
-    backgroundColor: '#2d6fff', borderRadius: 12,
-    paddingVertical: 16, alignItems: 'center', marginTop: 32,
-  },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  opcaoTexto: { color: cores.textoSecundario, fontSize: 13, fontWeight: '500' },
 
-  
+  botao: { ...comum.botaoPrimario, marginTop: 32 },
+  botaoDesabilitado: { opacity: 0.6 },
+  botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
 });

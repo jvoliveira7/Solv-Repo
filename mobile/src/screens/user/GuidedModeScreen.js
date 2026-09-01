@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Animated,
+  ScrollView, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { FLUXO_GUIADO } from '../../utils/fluxoGuiado';
+import api from '../../services/api';
+import { cores, espaco, raio, comum } from '../../theme';
+
+const TOTAL_PASSOS_ESTIMADO = 4;
 
 export default function GuidedModeScreen({ navigation }) {
   const [historico, setHistorico] = useState(['inicio']);
@@ -14,21 +18,17 @@ export default function GuidedModeScreen({ navigation }) {
   }
 
   function voltar() {
-    if (historico.length > 1) {
-      setHistorico(historico.slice(0, -1));
-    }
+    if (historico.length > 1) setHistorico(historico.slice(0, -1));
   }
 
   function reiniciar() {
     setHistorico(['inicio']);
   }
 
-  // Se chegou num resultado final
   if (etapaAtual?.resultado) {
     return (
       <ConfirmacaoChamado
         resultado={etapaAtual.resultado}
-        historico={historico}
         onVoltar={voltar}
         onReiniciar={reiniciar}
         navigation={navigation}
@@ -36,33 +36,31 @@ export default function GuidedModeScreen({ navigation }) {
     );
   }
 
-  const progresso = historico.length - 1; // quantas perguntas já respondidas
+  const passo = historico.length; // 1-indexado
+  const progresso = Math.min(passo / TOTAL_PASSOS_ESTIMADO, 1);
 
   return (
     <View style={styles.container}>
-      {/* Header com progresso */}
       <View style={styles.header}>
-        {historico.length > 1 && (
-          <TouchableOpacity onPress={voltar} style={styles.botaoVoltar}>
-            <Text style={styles.botaoVoltarTexto}>← Voltar</Text>
+        {historico.length > 1 ? (
+          <TouchableOpacity onPress={voltar} style={styles.botaoVoltarIcone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.botaoVoltarSeta}>←</Text>
           </TouchableOpacity>
-        )}
-        <View style={styles.progressoContainer}>
-          {[...Array(progresso)].map((_, i) => (
-            <View key={i} style={[styles.progressoDot, styles.progressoDotAtivo]} />
-          ))}
-          <View style={[styles.progressoDot, styles.progressoDotAtual]} />
+        ) : <View style={{ width: 24 }} />}
+        <Text style={styles.headerTitulo}>Modo guiado</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <View style={styles.barraProgressoWrap}>
+        <View style={styles.barraProgressoFundo}>
+          <View style={[styles.barraProgressoPreenchida, { width: `${progresso * 100}%` }]} />
         </View>
+        <Text style={styles.passoTexto}>Passo {passo} de {TOTAL_PASSOS_ESTIMADO}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Ícone e pergunta */}
-        <View style={styles.perguntaContainer}>
-          <Text style={styles.label}>Modo Guiado</Text>
-          <Text style={styles.pergunta}>{etapaAtual.pergunta}</Text>
-        </View>
+        <Text style={styles.pergunta}>{etapaAtual.pergunta}</Text>
 
-        {/* Opções */}
         <View style={styles.opcoes}>
           {etapaAtual.opcoes.map((opcao, index) => (
             <TouchableOpacity
@@ -72,7 +70,6 @@ export default function GuidedModeScreen({ navigation }) {
               activeOpacity={0.7}
             >
               <Text style={styles.opcaoTexto}>{opcao.label}</Text>
-              <Text style={styles.opcaoSeta}>›</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -86,13 +83,12 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
   const [enviando, setEnviando] = useState(false);
 
   const PRIORIDADE_COR = {
-    BAIXA: '#10b981', MEDIA: '#f59e0b', ALTA: '#ef4444', CRITICA: '#7c3aed',
+    BAIXA: cores.sucesso, MEDIA: cores.aviso, ALTA: cores.erro, CRITICA: cores.roxo,
   };
 
   async function handleAbrir() {
     setEnviando(true);
     try {
-      const api = (await import('../../services/api')).default;
       await api.post('/chamados', {
         titulo: resultado.titulo,
         descricao: resultado.descricao,
@@ -101,77 +97,77 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
         localizacao: localizacao.trim() || undefined,
       });
 
-      navigation.navigate('HomeTab', {
-        screen: 'Home',
-        params: { chamadoAberto: true },
-      });
+      navigation.navigate('HomeTab', { screen: 'Home', params: { chamadoAberto: true } });
       onReiniciar();
-    } catch (err) {
-      const { Alert } = await import('react-native');
+    } catch {
       Alert.alert('Erro', 'Não foi possível abrir o chamado.');
     } finally {
       setEnviando(false);
     }
   }
 
-  const { TextInput, Alert } = require('react-native');
-
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onVoltar} style={styles.botaoVoltarIcone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.botaoVoltarSeta}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitulo}>Revise antes de enviar</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Modo Guiado</Text>
-        <Text style={styles.confirmacaoTitulo}>Confirme seu chamado</Text>
         <Text style={styles.confirmacaoSubtitulo}>
-          Com base nas suas respostas, montamos o chamado abaixo:
+          Seu chamado será aberto com essas informações.
         </Text>
 
-        {/* Card do chamado gerado */}
-        <View style={styles.chamadoCard}>
-          <Text style={styles.chamadoTitulo}>{resultado.titulo}</Text>
-
-          <View style={styles.chamadoMeta}>
-            <View style={[styles.badge, { backgroundColor: '#2d6fff22' }]}>
-              <Text style={[styles.badgeTexto, { color: '#2d6fff' }]}>{resultado.categoria}</Text>
-            </View>
-            <View style={[styles.badge, { backgroundColor: PRIORIDADE_COR[resultado.prioridade] + '22' }]}>
-              <Text style={[styles.badgeTexto, { color: PRIORIDADE_COR[resultado.prioridade] }]}>
-                {resultado.prioridade}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.chamadoDescricao}>{resultado.descricao}</Text>
+        <Text style={styles.campoLabel}>Categoria detectada</Text>
+        <View style={styles.campoValorLinha}>
+          <Text style={styles.campoValorIcone}>🏷️</Text>
+          <Text style={styles.campoValorTexto}>{resultado.titulo}</Text>
         </View>
 
-        {/* Localização opcional */}
-        <Text style={styles.localizacaoLabel}>Onde você está? (opcional)</Text>
+        <Text style={styles.campoLabel}>Descrição gerada</Text>
+        <Text style={styles.campoDescricao}>{resultado.descricao}</Text>
+
+        <Text style={styles.campoLabel}>Localização</Text>
         <TextInput
-          style={styles.localizacaoInput}
-          placeholder="Ex: Secretaria de Educação, Sala 3"
-          placeholderTextColor="#555"
+          style={styles.input}
+          placeholder="📍 Onde você está? (opcional)"
+          placeholderTextColor={cores.placeholder}
           value={localizacao}
           onChangeText={setLocalizacao}
         />
 
-        {/* Ações */}
+        <Text style={styles.campoLabel}>Prioridade sugerida</Text>
+        <View style={[styles.badge, { backgroundColor: PRIORIDADE_COR[resultado.prioridade] + '22', alignSelf: 'flex-start' }]}>
+          <Text style={[styles.badgeTexto, { color: PRIORIDADE_COR[resultado.prioridade] }]}>
+            {resultado.prioridade}
+          </Text>
+        </View>
+
+        <View style={styles.avisoOk}>
+          <Text style={styles.avisoOkIcone}>✓</Text>
+          <Text style={styles.avisoOkTexto}>Tudo certo? Você ainda pode corrigir qualquer informação antes de enviar.</Text>
+        </View>
+
         <TouchableOpacity
-          style={[styles.botaoAbrir, enviando && { opacity: 0.6 }]}
+          style={[styles.botao, enviando && styles.botaoDesabilitado]}
           onPress={handleAbrir}
           disabled={enviando}
-          
         >
-          <Text style={styles.botaoAbrirTexto}>
-            {enviando ? 'Abrindo chamado...' : '✓ Abrir este chamado'}
-            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />
-          </Text>
+          {enviando
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.botaoTexto}>Abrir este chamado</Text>
+          }
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.botaoVoltar2} onPress={onVoltar}>
-          <Text style={styles.botaoVoltar2Texto}>← Voltar e corrigir</Text>
+        <TouchableOpacity style={styles.botaoSecundario} onPress={onVoltar}>
+          <Text style={styles.botaoSecundarioTexto}>← Voltar e corrigir</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.botaoReiniciar} onPress={onReiniciar}>
-          <Text style={styles.botaoReiniciarTexto}>↺ Recomeçar</Text>
+        <TouchableOpacity style={styles.botaoTerciario} onPress={onReiniciar}>
+          <Text style={styles.botaoTerciarioTexto}>↺ Recomeçar</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -179,58 +175,62 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1117' },
+  container: { flex: 1, backgroundColor: cores.fundo },
+
   header: {
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: espaco.lg, paddingTop: 16, paddingBottom: 4,
   },
-  botaoVoltar: { paddingVertical: 4 },
-  botaoVoltarTexto: { color: '#2d6fff', fontSize: 15 },
-  progressoContainer: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  progressoDot: { width: 8, height: 8, borderRadius: 4 },
-  progressoDotAtivo: { backgroundColor: '#2d6fff' },
-  progressoDotAtual: { backgroundColor: '#2d6fff44', width: 10, height: 10, borderRadius: 5 },
-  content: { padding: 20, paddingBottom: 40 },
-  label: { color: '#2d6fff', fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
-  perguntaContainer: { marginBottom: 32 },
-  pergunta: { color: '#fff', fontSize: 24, fontWeight: 'bold', lineHeight: 32 },
+  botaoVoltarIcone: { width: 24 },
+  botaoVoltarSeta: { color: cores.texto, fontSize: 20 },
+  headerTitulo: { color: cores.texto, fontSize: 16, fontWeight: '700' },
+
+  barraProgressoWrap: { paddingHorizontal: espaco.lg, marginTop: 14, marginBottom: 6 },
+  barraProgressoFundo: { height: 4, borderRadius: 2, backgroundColor: cores.card, overflow: 'hidden' },
+  barraProgressoPreenchida: { height: 4, backgroundColor: cores.azul, borderRadius: 2 },
+  passoTexto: { color: cores.textoTerciario, fontSize: 11, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  content: { padding: espaco.xl, paddingTop: 12, paddingBottom: 40 },
+  pergunta: { color: cores.texto, fontSize: 24, fontWeight: '700', lineHeight: 32, marginBottom: 24 },
+
   opcoes: { gap: 12 },
   opcao: {
-    backgroundColor: '#1a1d27', borderRadius: 14, padding: 18,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: '#2a2d3a',
+    backgroundColor: cores.card, borderRadius: raio.lg, padding: 18,
+    borderWidth: 1, borderColor: cores.cardBorda,
   },
-  opcaoTexto: { color: '#fff', fontSize: 16, flex: 1 },
-  opcaoSeta: { color: '#2d6fff', fontSize: 22, fontWeight: 'bold' },
+  opcaoTexto: { color: cores.texto, fontSize: 16 },
 
-  // Confirmação
-  confirmacaoTitulo: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  confirmacaoSubtitulo: { color: '#888', fontSize: 14, marginBottom: 24, lineHeight: 20 },
-  chamadoCard: {
-    backgroundColor: '#1a1d27', borderRadius: 14, padding: 20,
-    borderWidth: 1, borderColor: '#2a2d3a', marginBottom: 24,
+  rodapeBotao: { padding: espaco.lg },
+  botao: { ...comum.botaoPrimario },
+  botaoDesabilitado: { opacity: 0.4 },
+  botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
+
+  confirmacaoSubtitulo: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginBottom: 24 },
+  campoLabel: {
+    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8, marginTop: 18,
   },
-  chamadoTitulo: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  chamadoMeta: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  badgeTexto: { fontSize: 12, fontWeight: '600' },
-  chamadoDescricao: { color: '#aaa', fontSize: 14, lineHeight: 20 },
-  localizacaoLabel: { color: '#aaa', fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  localizacaoInput: {
-    backgroundColor: '#1a1d27', borderWidth: 1, borderColor: '#2a2d3a',
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
-    color: '#fff', fontSize: 15, marginBottom: 24,
+  campoValorLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  campoValorIcone: { fontSize: 18 },
+  campoValorTexto: { color: cores.texto, fontSize: 18, fontWeight: '700' },
+  campoDescricao: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
+  input: { ...comum.input },
+  badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: raio.sm },
+  badgeTexto: { fontSize: 12, fontWeight: '700' },
+
+  avisoOk: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: cores.sucessoSuave, borderRadius: raio.md,
+    padding: 14, marginTop: 28,
   },
-  botaoAbrir: {
-    backgroundColor: '#2d6fff', borderRadius: 12,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+  avisoOkIcone: { color: cores.sucesso, fontSize: 15, fontWeight: '700' },
+  avisoOkTexto: { color: cores.sucesso, fontSize: 13, flex: 1, lineHeight: 18 },
+
+  botaoSecundario: {
+    borderRadius: raio.md, paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: cores.cardBorda, marginTop: 12,
   },
-  botaoAbrirTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  botaoVoltar2: {
-    borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: '#2a2d3a', marginBottom: 10,
-  },
-  botaoVoltar2Texto: { color: '#aaa', fontSize: 15 },
-  botaoReiniciar: { paddingVertical: 12, alignItems: 'center' },
-  botaoReiniciarTexto: { color: '#555', fontSize: 14 },
+  botaoSecundarioTexto: { color: cores.textoSecundario, fontSize: 15 },
+  botaoTerciario: { paddingVertical: 12, alignItems: 'center' },
+  botaoTerciarioTexto: { color: cores.textoTerciario, fontSize: 14 },
 });
