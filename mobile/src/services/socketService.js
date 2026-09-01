@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import { getToken } from '../storage/authStorage';
 
-const SOCKET_URL = 'http://192.168.0.74:3000';
+const SOCKET_URL = 'http://192.168.0.99:3000';
 
 let socket = null;
 
