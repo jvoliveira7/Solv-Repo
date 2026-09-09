@@ -16,6 +16,8 @@ function authReducer(state, action) {
       return { ...state, usuario: action.usuario, token: action.token, carregando: false };
     case 'LOGIN':
       return { ...state, usuario: action.usuario, token: action.token, carregando: false };
+    case 'ATUALIZAR_USUARIO':
+      return { ...state, usuario: { ...state.usuario, ...action.usuario } };
     case 'LOGOUT':
       return { ...initialState, carregando: false };
     default:
@@ -66,8 +68,15 @@ export function AuthProvider({ children }) {
     dispatch({ type: 'LOGOUT' });
   }
 
+  async function atualizarAvatar(avatarBase64) {
+    const { data } = await api.patch('/auth/avatar', { avatar: avatarBase64 });
+    dispatch({ type: 'ATUALIZAR_USUARIO', usuario: data });
+    await saveAuth(state.token, { ...state.usuario, ...data });
+    return data;
+  }
+
   return (
-    <AuthContext.Provider value={{ ...state, login, registrar, logout }}>
+    <AuthContext.Provider value={{ ...state, login, registrar, logout, atualizarAvatar }}>
       {children}
     </AuthContext.Provider>
   );

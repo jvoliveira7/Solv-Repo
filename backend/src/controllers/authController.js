@@ -33,6 +33,7 @@ async function registro(req, res) {
         nome: true,
         email: true,
         setor: true,
+        avatar: true,
         perfil: true,
         criadoEm: true,
       },
@@ -82,6 +83,7 @@ async function login(req, res) {
         nome: usuario.nome,
         email: usuario.email,
         setor: usuario.setor,
+        avatar: usuario.avatar,
         perfil: usuario.perfil,
       },
       token,
@@ -102,6 +104,7 @@ async function me(req, res) {
         nome: true,
         email: true,
         setor: true,
+        avatar: true,
         perfil: true,
         criadoEm: true,
       },
@@ -118,10 +121,45 @@ async function me(req, res) {
   }
 }
 
+// PATCH /api/auth/avatar
+// Recebe { avatar: "data:image/jpeg;base64,..." } ou { avatar: null } pra remover.
+// Guardado como base64 direto no banco — sem storage de arquivo externo no
+// projeto ainda. Funciona bem pra escala de TCC/demo; não é o ideal pra
+// produção (infla o banco, sem CDN). Se o projeto crescer, migrar pra um
+// bucket (S3/Cloudinary/etc.) e guardar só a URL aqui.
+async function atualizarAvatar(req, res) {
+  const { avatar } = req.body;
+
+  if (avatar && !avatar.startsWith('data:image/')) {
+    return res.status(400).json({ erro: 'Formato de imagem inválido' });
+  }
+
+  try {
+    const usuario = await prisma.usuario.update({
+      where: { id: req.usuario.id },
+      data: { avatar: avatar || null },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        setor: true,
+        avatar: true,
+        perfil: true,
+        criadoEm: true,
+      },
+    });
+
+    return res.json(usuario);
+  } catch (err) {
+    console.error('Erro ao atualizar avatar:', err);
+    return res.status(500).json({ erro: 'Erro ao atualizar avatar' });
+  }
+}
+
 function gerarToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 }
 
-module.exports = { registro, login, me };
+module.exports = { registro, login, me, atualizarAvatar };

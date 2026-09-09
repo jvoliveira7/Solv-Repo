@@ -12,6 +12,7 @@ model Usuario {
   email     String   @unique
   senha     String
   setor     String?
+  avatar    String?  @db.Text
   perfil    Perfil   @default(USUARIO)
   criadoEm DateTime @default(now())
 
