@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { FLUXO_GUIADO } from '../../utils/fluxoGuiado';
 import api from '../../services/api';
-import { cores, espaco, raio, comum } from '../../theme';
+import { cores, espaco, raio, comum, fontInter } from '../../theme';
 
 const TOTAL_PASSOS_ESTIMADO = 4;
 
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   botaoVoltarIcone: { width: 24 },
   botaoVoltarSeta: { color: cores.texto, fontSize: 20 },
-  headerTitulo: { color: cores.texto, fontSize: 16, fontWeight: '700' },
+  headerTitulo: { color: cores.texto, fontSize: 16, fontFamily: fontInter.bold },
 
   barraProgressoWrap: { paddingHorizontal: espaco.lg, marginTop: 14, marginBottom: 6 },
   barraProgressoFundo: { height: 4, borderRadius: 2, backgroundColor: cores.card, overflow: 'hidden' },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   passoTexto: { color: cores.textoTerciario, fontSize: 11, marginTop: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   content: { padding: espaco.xl, paddingTop: 12, paddingBottom: 40 },
-  pergunta: { color: cores.texto, fontSize: 24, fontWeight: '700', lineHeight: 32, marginBottom: 24 },
+  pergunta: { color: cores.texto, fontSize: 24, fontFamily: fontInter.bold, lineHeight: 32, marginBottom: 24 },
 
   opcoes: { gap: 12 },
   opcao: {
@@ -207,23 +207,23 @@ const styles = StyleSheet.create({
 
   confirmacaoSubtitulo: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginBottom: 24 },
   campoLabel: {
-    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8, marginTop: 18,
   },
   campoValorLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   campoValorIcone: { fontSize: 18 },
-  campoValorTexto: { color: cores.texto, fontSize: 18, fontWeight: '700' },
+  campoValorTexto: { color: cores.texto, fontSize: 18, fontFamily: fontInter.bold },
   campoDescricao: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
   input: { ...comum.input },
   badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: raio.sm },
-  badgeTexto: { fontSize: 12, fontWeight: '700' },
+  badgeTexto: { fontSize: 12, fontFamily: fontInter.bold },
 
   avisoOk: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
     backgroundColor: cores.sucessoSuave, borderRadius: raio.md,
     padding: 14, marginTop: 28,
   },
-  avisoOkIcone: { color: cores.sucesso, fontSize: 15, fontWeight: '700' },
+  avisoOkIcone: { color: cores.sucesso, fontSize: 15, fontFamily: fontInter.bold },
   avisoOkTexto: { color: cores.sucesso, fontSize: 13, flex: 1, lineHeight: 18 },
 
   botaoSecundario: {

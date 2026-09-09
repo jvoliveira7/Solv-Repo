@@ -6,7 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { cores, espaco, raio, statusCor, statusLabel } from '../../theme';
+import { cores, espaco, raio, statusCor, statusLabel, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
 
 function iniciais(nome = '') {
@@ -111,20 +111,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', padding: espaco.xl, paddingTop: 16,
   },
-  logo: { color: cores.texto, fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  logo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, letterSpacing: -0.5 },
   bemVindo: { color: cores.textoSecundario, fontSize: 13, marginTop: 2 },
   avatar: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: cores.azul,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarTexto: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  avatarTexto: { color: '#fff', fontSize: 13, fontFamily: fontInter.bold },
 
   lista: { paddingHorizontal: espaco.lg, paddingBottom: 90 },
   card: { ...{ backgroundColor: cores.card, borderRadius: raio.lg, padding: espaco.lg, marginBottom: 12, borderWidth: 1, borderColor: cores.cardBorda } },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8 },
-  cardTitulo: { color: cores.texto, fontSize: 15, fontWeight: '700', flex: 1 },
+  cardTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontInter.bold, flex: 1 },
   badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: raio.sm },
-  badgeTexto: { fontSize: 11, fontWeight: '700' },
+  badgeTexto: { fontSize: 11, fontFamily: fontInter.bold },
   cardCategoria: { color: cores.textoSecundario, fontSize: 12, marginBottom: 4 },
   cardLocalizacao: { color: cores.textoSecundario, fontSize: 12, marginBottom: 4 },
   cardData: { color: cores.textoTerciario, fontSize: 11 },
@@ -136,5 +136,5 @@ const styles = StyleSheet.create({
     backgroundColor: cores.azul, borderRadius: raio.md,
     paddingVertical: 16, alignItems: 'center',
   },
-  fabTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  fabTexto: { color: '#fff', fontSize: 16, fontFamily: fontInter.bold },
 });

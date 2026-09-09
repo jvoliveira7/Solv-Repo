@@ -4,7 +4,7 @@ import {
   ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import api from '../../services/api';
-import { cores, espaco, raio, comum } from '../../theme';
+import { cores, espaco, raio, comum, fontInter } from '../../theme';
 
 const CATEGORIAS = [
   { valor: 'HARDWARE', label: 'Hardware', icone: '🖥️' },
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   bannerGuiadoTexto: { color: cores.azulClaro, fontSize: 14, fontWeight: '600' },
 
   label: {
-    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8, marginTop: 18,
   },
   input: { ...comum.input },

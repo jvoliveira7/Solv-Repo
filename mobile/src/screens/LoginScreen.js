@@ -5,7 +5,7 @@ import {
   Platform, Alert, Animated, Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { cores, espaco, raio, comum } from '../theme';
+import { cores, espaco, raio, comum, fontInter } from '../theme';
 
 const { width: LARGURA } = Dimensions.get('window');
 
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   logo: {
-    fontSize: 44, fontWeight: '800', color: cores.texto,
+    fontSize: 44, fontFamily: fontInter.extrabold, color: cores.texto,
     textAlign: 'center', marginBottom: 10, letterSpacing: -1,
   },
   logoPonto: { color: cores.azul },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 32,
   },
-  cartaoTitulo: { color: cores.texto, fontSize: 20, fontWeight: '800', marginBottom: 22 },
+  cartaoTitulo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, marginBottom: 22 },
 
   inputLinha: {
     flexDirection: 'row', alignItems: 'center',
@@ -217,5 +217,5 @@ const styles = StyleSheet.create({
   botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
   linkCriarConta: { marginTop: espaco.xl, alignItems: 'center' },
   linkCriarContaTexto: { color: cores.textoTerciario, fontSize: 13 },
-  linkCriarContaDestaque: { color: cores.azulClaro, fontWeight: '700' },
+  linkCriarContaDestaque: { color: cores.azulClaro, fontFamily: fontInter.bold },
 });
