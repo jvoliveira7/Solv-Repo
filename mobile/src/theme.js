@@ -57,10 +57,23 @@ export const espaco = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 };
 
 export const raio = { sm: 8, md: 12, lg: 16, xl: 22, pill: 999 };
 
+// Família Inter (Google Fonts via Expo) — carregada globalmente no App.js.
+// Usada para todo texto em negrito (fontWeight 700/800): no Android, negrito
+// sintético sobre a fonte do sistema corta a última parte do texto depois
+// que uma fonte customizada é carregada via expo-font — usar os arquivos
+// reais do Inter (fontFamily, sem fontWeight) evita o corte.
+export const fontInter = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  extrabold: 'Inter_800ExtraBold',
+};
+
 export const fonte = {
-  titulo: { fontSize: 24, fontWeight: '700', color: cores.texto },
+  titulo: { fontSize: 24, fontFamily: fontInter.bold, color: cores.texto },
   subtitulo: { fontSize: 15, fontWeight: '400', color: cores.textoSecundario },
-  secao: { fontSize: 12, fontWeight: '700', color: cores.textoSecundario, letterSpacing: 0.6, textTransform: 'uppercase' },
+  secao: { fontSize: 12, fontFamily: fontInter.bold, color: cores.textoSecundario, letterSpacing: 0.6, textTransform: 'uppercase' },
   corpo: { fontSize: 15, fontWeight: '400', color: cores.texto },
   legenda: { fontSize: 12, fontWeight: '400', color: cores.textoTerciario },
 };
@@ -73,7 +86,7 @@ export const comum = {
     paddingVertical: 15,
     alignItems: 'center',
   },
-  botaoPrimarioTexto: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  botaoPrimarioTexto: { color: '#fff', fontSize: 15, fontFamily: fontInter.bold },
   input: {
     backgroundColor: cores.card,
     borderRadius: raio.md,
