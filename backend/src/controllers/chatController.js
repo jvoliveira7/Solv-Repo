@@ -48,7 +48,7 @@ async function listarMensagens(req, res) {
     const mensagens = await prisma.mensagem.findMany({
       where: { sessaoId },
       orderBy: { criadoEm: 'asc' },
-      include: { autor: { select: { id: true, nome: true, perfil: true } } },
+      include: { autor: { select: { id: true, nome: true, avatar: true, perfil: true } } },
     });
 
     return res.json(mensagens);
@@ -71,8 +71,8 @@ async function listarChats(req, res) {
       orderBy: { criadoEm: 'desc' },
       include: {
         chamado: { select: { id: true, titulo: true, status: true } },
-        usuario: { select: { id: true, nome: true } },
-        tecnico: { select: { id: true, nome: true } },
+        usuario: { select: { id: true, nome: true, avatar: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true } },
         mensagens: { orderBy: { criadoEm: 'desc' }, take: 1 },
       },
     });

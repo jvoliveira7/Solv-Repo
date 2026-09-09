@@ -19,7 +19,7 @@ async function criar(req, res) {
         solicitanteId: req.usuario.id,
       },
       include: {
-        solicitante: { select: { id: true, nome: true, setor: true } },
+        solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
       },
     });
 
@@ -27,6 +27,27 @@ async function criar(req, res) {
   } catch (err) {
     console.error('Erro ao criar chamado:', err);
     return res.status(500).json({ erro: 'Erro ao criar chamado' });
+  }
+}
+
+// GET /api/chamados/contagem
+// Contagem de chamados agrupada nos mesmos 3 grupos usados nas abas do
+// painel do técnico (Abertos / Em andamento / Resolvidos), pros badges.
+async function contarPorGrupo(req, res) {
+  const { perfil, id } = req.usuario;
+  const where = perfil === 'USUARIO' ? { solicitanteId: id } : {};
+
+  try {
+    const [abertos, emAndamento, resolvidos] = await Promise.all([
+      prisma.chamado.count({ where: { ...where, status: 'ABERTO' } }),
+      prisma.chamado.count({ where: { ...where, status: { in: ['EM_ATENDIMENTO', 'AGUARDANDO'] } } }),
+      prisma.chamado.count({ where: { ...where, status: { in: ['RESOLVIDO', 'FECHADO'] } } }),
+    ]);
+
+    return res.json({ ABERTO: abertos, EM_ATENDIMENTO: emAndamento, RESOLVIDO: resolvidos });
+  } catch (err) {
+    console.error('Erro ao contar chamados:', err);
+    return res.status(500).json({ erro: 'Erro ao contar chamados' });
   }
 }
 
@@ -51,8 +72,8 @@ async function listar(req, res) {
       where,
       orderBy: { criadoEm: 'desc' },
       include: {
-        solicitante: { select: { id: true, nome: true, setor: true } },
-        tecnico: { select: { id: true, nome: true } },
+        solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true } },
         chat: { select: { status: true } },
         _count: { select: { comentarios: true } },
       },
@@ -74,12 +95,13 @@ async function buscarPorId(req, res) {
     const chamado = await prisma.chamado.findUnique({
       where: { id },
       include: {
-        solicitante: { select: { id: true, nome: true, setor: true } },
-        tecnico: { select: { id: true, nome: true } },
+        solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true } },
         comentarios: {
           orderBy: { criadoEm: 'asc' },
-          include: { autor: { select: { id: true, nome: true, perfil: true } } },
+          include: { autor: { select: { id: true, nome: true, avatar: true, perfil: true } } },
         },
+        avaliacao: true,
       },
     });
 
@@ -124,8 +146,8 @@ async function atualizarStatus(req, res) {
       where: { id },
       data: dados,
       include: {
-        solicitante: { select: { id: true, nome: true } },
-        tecnico: { select: { id: true, nome: true } },
+        solicitante: { select: { id: true, nome: true, avatar: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true } },
       },
     });
 
@@ -193,7 +215,7 @@ async function adicionarComentario(req, res) {
         chamadoId: id,
       },
       include: {
-        autor: { select: { id: true, nome: true, perfil: true } },
+        autor: { select: { id: true, nome: true, avatar: true, perfil: true } },
       },
     });
 
@@ -204,4 +226,81 @@ async function adicionarComentario(req, res) {
   }
 }
 
-module.exports = { criar, listar, buscarPorId, atualizarStatus, adicionarComentario };
+// GET /api/chamados/estatisticas-tecnico
+// Números pro card de estatísticas na tela de Perfil do técnico logado.
+async function estatisticasTecnico(req, res) {
+  const { id } = req.usuario;
+
+  try {
+    const [resolvidos, agregadoAvaliacoes] = await Promise.all([
+      prisma.chamado.count({ where: { tecnicoId: id, status: { in: ['RESOLVIDO', 'FECHADO'] } } }),
+      prisma.avaliacao.aggregate({
+        where: { chamado: { tecnicoId: id } },
+        _avg: { nota: true },
+        _count: { nota: true },
+      }),
+    ]);
+
+    return res.json({
+      resolvidos,
+      mediaAvaliacoes: agregadoAvaliacoes._avg.nota,
+      totalAvaliacoes: agregadoAvaliacoes._count.nota,
+    });
+  } catch (err) {
+    console.error('Erro ao calcular estatísticas:', err);
+    return res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
+  }
+}
+
+// POST /api/chamados/:id/avaliacao  (usuário solicitante, chamado já resolvido/fechado)
+async function avaliar(req, res) {
+  const { id } = req.params;
+  const { nota, comentario } = req.body;
+
+  const notaNum = Number(nota);
+  if (!Number.isInteger(notaNum) || notaNum < 1 || notaNum > 5) {
+    return res.status(400).json({ erro: 'Nota deve ser um número inteiro de 1 a 5' });
+  }
+
+  try {
+    const chamado = await prisma.chamado.findUnique({ where: { id } });
+    if (!chamado) return res.status(404).json({ erro: 'Chamado não encontrado' });
+
+    if (chamado.solicitanteId !== req.usuario.id) {
+      return res.status(403).json({ erro: 'Apenas quem abriu o chamado pode avaliar' });
+    }
+
+    if (!['RESOLVIDO', 'FECHADO'].includes(chamado.status)) {
+      return res.status(400).json({ erro: 'O chamado precisa estar resolvido para ser avaliado' });
+    }
+
+    if (!chamado.tecnicoId) {
+      return res.status(400).json({ erro: 'Chamado sem técnico atribuído' });
+    }
+
+    const avaliacaoExistente = await prisma.avaliacao.findUnique({ where: { chamadoId: id } });
+    if (avaliacaoExistente) {
+      return res.status(409).json({ erro: 'Este chamado já foi avaliado' });
+    }
+
+    const avaliacao = await prisma.avaliacao.create({
+      data: {
+        nota: notaNum,
+        comentario: comentario?.trim() || null,
+        chamadoId: id,
+        autorId: req.usuario.id,
+      },
+    });
+
+    return res.status(201).json(avaliacao);
+  } catch (err) {
+    // corrida: duas requisições tentando criar ao mesmo tempo — a constraint unique no chamadoId protege
+    if (err.code === 'P2002') {
+      return res.status(409).json({ erro: 'Este chamado já foi avaliado' });
+    }
+    console.error('Erro ao avaliar chamado:', err);
+    return res.status(500).json({ erro: 'Erro ao avaliar chamado' });
+  }
+}
+
+module.exports = { criar, listar, contarPorGrupo, estatisticasTecnico, buscarPorId, atualizarStatus, adicionarComentario, avaliar };

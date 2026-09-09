@@ -30,8 +30,8 @@ module.exports = function configurarSocket(io) {
       const chamado = await prisma.chamado.findUnique({
         where: { id: chamadoId },
         include: {
-          solicitante: { select: { id: true, nome: true } },
-          tecnico: { select: { id: true, nome: true } },
+          solicitante: { select: { id: true, nome: true, avatar: true } },
+          tecnico: { select: { id: true, nome: true, avatar: true } },
         },
       });
 
@@ -91,7 +91,7 @@ module.exports = function configurarSocket(io) {
           sessaoId: sessao.id,
           chamadoId,
           chamadoTitulo: chamado.titulo,
-          solicitante: { id: usuarioId, nome },
+          solicitante: chamado.solicitante,
         });
 
         socket.emit('chat_solicitado', { sessaoId: sessao.id, chamadoId, status: sessao.status, iniciadoPor: sessao.iniciadoPor });
@@ -114,7 +114,7 @@ module.exports = function configurarSocket(io) {
         io.to(`usuario:${chamado.solicitanteId}`).emit('chat_aceito', {
           sessaoId: sessao.id,
           chamadoId,
-          contato: { id: usuarioId, nome },
+          contato: chamado.tecnico,
         });
 
         // Confirma pro próprio técnico que já pode abrir a conversa
@@ -139,8 +139,8 @@ module.exports = function configurarSocket(io) {
           include: {
             chamado: {
               include: {
-                solicitante: { select: { id: true, nome: true } },
-                tecnico: { select: { id: true, nome: true } },
+                solicitante: { select: { id: true, nome: true, avatar: true } },
+                tecnico: { select: { id: true, nome: true, avatar: true } },
               },
             },
           },
@@ -160,7 +160,7 @@ module.exports = function configurarSocket(io) {
         socket.join(`chat:${sessaoId}`);
 
         const outroLadoId = sessao.iniciadoPor === 'USUARIO' ? sessao.usuarioId : sessao.tecnicoId;
-        const contatoAceitante = { id: usuarioId, nome };
+        const contatoAceitante = sessao.iniciadoPor === 'USUARIO' ? sessao.chamado.tecnico : sessao.chamado.solicitante;
 
         io.to(`usuario:${outroLadoId}`).emit('chat_aceito', {
           sessaoId,
@@ -230,8 +230,8 @@ module.exports = function configurarSocket(io) {
           where: { sessaoId },
           orderBy: { criadoEm: 'asc' },
           include: {
-            autor: { select: { id: true, nome: true, perfil: true } },
-            respostaA: { select: { id: true, texto: true, autor: { select: { nome: true } } } },
+            autor: { select: { id: true, nome: true, avatar: true, perfil: true } },
+            respostaA: { select: { id: true, texto: true, autor: { select: { nome: true, avatar: true } } } },
           },
         });
 
@@ -287,10 +287,10 @@ module.exports = function configurarSocket(io) {
             status: outroJaPresente ? 'ENTREGUE' : 'ENVIADA',
           },
           include: {
-            autor: { select: { id: true, nome: true, perfil: true } },
+            autor: { select: { id: true, nome: true, avatar: true, perfil: true } },
             sessao: { select: { chamadoId: true } },
             respostaA: {
-              select: { id: true, texto: true, autor: { select: { nome: true } } },
+              select: { id: true, texto: true, autor: { select: { nome: true, avatar: true } } },
             },
           },
         });
