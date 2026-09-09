@@ -5,8 +5,10 @@ import {
 } from 'react-native';
 import api from '../../services/api';
 import { useChatSessao } from '../../hooks/useChatSessao';
-import { cores, espaco, raio, comum, statusCor, statusLabel, prioridadeCor } from '../../theme';
+import { cores, espaco, raio, comum, statusCor, statusLabel, prioridadeCor, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
+import Avatar from '../../components/Avatar';
+import Estrelas from '../../components/Estrelas';
 
 const PROXIMOS_STATUS = {
   ABERTO: ['EM_ATENDIMENTO'],
@@ -15,11 +17,6 @@ const PROXIMOS_STATUS = {
   RESOLVIDO: ['FECHADO'],
   FECHADO: [],
 };
-
-function iniciais(nome = '') {
-  const partes = nome.trim().split(' ');
-  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
-}
 
 export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   const { id } = route.params;
@@ -150,9 +147,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
 
           <View style={styles.metaLista}>
             <View style={styles.metaLinha}>
-              <View style={styles.metaAvatar}>
-                <Text style={styles.metaAvatarTexto}>{iniciais(chamado.solicitante.nome)}</Text>
-              </View>
+              <Avatar uri={chamado.solicitante.avatar} nome={chamado.solicitante.nome} size={20} cor={cores.roxo} fonteSize={9} />
               <Text style={styles.metaTexto}>{chamado.solicitante.nome} · {chamado.solicitante.setor}</Text>
             </View>
             {chamado.localizacao && (
@@ -236,6 +231,18 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
           <Text style={styles.descricao}>{chamado.descricao}</Text>
         </View>
 
+        {chamado.avaliacao && (
+          <>
+            <Text style={styles.secaoTitulo}>Avaliação do usuário</Text>
+            <View style={[comum.card, { marginBottom: espaco.lg }]}>
+              <Estrelas valor={chamado.avaliacao.nota} tamanho={20} />
+              {chamado.avaliacao.comentario ? (
+                <Text style={[styles.descricao, { fontSize: 14, marginTop: 10 }]}>{chamado.avaliacao.comentario}</Text>
+              ) : null}
+            </View>
+          </>
+        )}
+
         {/* Histórico */}
         <Text style={styles.secaoTitulo}>Histórico ({chamado.comentarios.length})</Text>
         {chamado.comentarios.length === 0 && (
@@ -244,9 +251,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
         {chamado.comentarios.map((c) => (
           <View key={c.id} style={styles.comentario}>
             <View style={styles.comentarioTopo}>
-              <View style={styles.comentarioAvatar}>
-                <Text style={styles.comentarioAvatarTexto}>{iniciais(c.autor.nome)}</Text>
-              </View>
+              <Avatar uri={c.autor.avatar} nome={c.autor.nome} size={28} cor={cores.cardBorda} fonteSize={10} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.comentarioAutor}>{c.autor.nome}
                   <Text style={styles.comentarioPerfil}> · {c.autor.perfil}</Text>
@@ -303,11 +308,11 @@ const styles = StyleSheet.create({
 
   hero: { ...comum.card, marginBottom: espaco.lg },
   statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: raio.sm, marginBottom: 12 },
-  statusBadgeTexto: { fontSize: 11, fontWeight: '700' },
-  titulo: { color: cores.texto, fontSize: 20, fontWeight: '800', marginBottom: 10 },
+  statusBadgeTexto: { fontSize: 11, fontFamily: fontInter.bold },
+  titulo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, marginBottom: 10 },
   chipsLinha: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: raio.sm },
-  chipTexto: { color: cores.textoSecundario, fontSize: 11, fontWeight: '700' },
+  chipTexto: { color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold },
 
   metaLista: { gap: 8, borderTopWidth: 1, borderTopColor: cores.cardBorda, paddingTop: 12 },
   metaLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -316,14 +321,14 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10, backgroundColor: cores.roxo,
     justifyContent: 'center', alignItems: 'center',
   },
-  metaAvatarTexto: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  metaAvatarTexto: { color: '#fff', fontSize: 9, fontFamily: fontInter.bold },
   metaTexto: { color: cores.textoSecundario, fontSize: 13 },
 
   botaoChat: {
     backgroundColor: cores.card, borderWidth: 1, borderColor: cores.azul,
     borderRadius: raio.md, paddingVertical: 14, alignItems: 'center', marginBottom: espaco.lg,
   },
-  botaoChatTexto: { color: cores.azulClaro, fontSize: 15, fontWeight: '700' },
+  botaoChatTexto: { color: cores.azulClaro, fontSize: 15, fontFamily: fontInter.bold },
   botaoChatPendente: { borderColor: cores.aviso },
   botaoChatHistorico: { borderColor: cores.cardBorda },
   botaoChatConvidar: { borderColor: cores.azul },
@@ -335,10 +340,10 @@ const styles = StyleSheet.create({
   botaoConvite: { flex: 1, paddingVertical: 12, borderRadius: raio.sm, alignItems: 'center' },
   botaoRecusar: { backgroundColor: cores.fundo, borderWidth: 1, borderColor: cores.erro },
   botaoAceitar: { backgroundColor: cores.azul },
-  botaoConviteTexto: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  botaoConviteTexto: { color: '#fff', fontSize: 14, fontFamily: fontInter.bold },
 
   secaoTitulo: {
-    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10, marginTop: 8,
   },
   descricao: { color: cores.texto, fontSize: 15, lineHeight: 22 },
@@ -350,8 +355,8 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: cores.cardBorda,
     justifyContent: 'center', alignItems: 'center',
   },
-  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontWeight: '700' },
-  comentarioAutor: { color: cores.texto, fontWeight: '700', fontSize: 13 },
+  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontFamily: fontInter.bold },
+  comentarioAutor: { color: cores.texto, fontFamily: fontInter.bold, fontSize: 13 },
   comentarioPerfil: { color: cores.textoTerciario, fontWeight: '400' },
   comentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
   comentarioData: { color: cores.textoTerciario, fontSize: 11, marginTop: 1 },
@@ -362,5 +367,5 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 14, borderRadius: raio.md,
     borderWidth: 1, alignItems: 'center',
   },
-  botaoAcaoTexto: { fontWeight: 'bold', fontSize: 14 },
+  botaoAcaoTexto: { fontFamily: fontInter.bold, fontSize: 14 },
 });

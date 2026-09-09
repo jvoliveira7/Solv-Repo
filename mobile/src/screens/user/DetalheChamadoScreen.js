@@ -5,13 +5,10 @@ import {
 } from 'react-native';
 import api from '../../services/api';
 import { useChatSessao } from '../../hooks/useChatSessao';
-import { cores, espaco, raio, comum, statusCor, statusLabel, prioridadeCor } from '../../theme';
+import { cores, espaco, raio, comum, statusCor, statusLabel, prioridadeCor, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
-
-function iniciais(nome = '') {
-  const partes = nome.trim().split(' ');
-  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
-}
+import Avatar from '../../components/Avatar';
+import Estrelas from '../../components/Estrelas';
 
 export default function DetalheChamadoScreen({ route, navigation }) {
   const { id } = route.params;
@@ -19,6 +16,9 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   const [carregando, setCarregando] = useState(true);
   const [comentario, setComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [notaAvaliacao, setNotaAvaliacao] = useState(0);
+  const [comentarioAvaliacao, setComentarioAvaliacao] = useState('');
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
 
   const { sessao: sessaoChat, solicitar } = useChatSessao(id);
 
@@ -70,6 +70,22 @@ export default function DetalheChamadoScreen({ route, navigation }) {
     }
   }
 
+  async function handleAvaliar() {
+    if (notaAvaliacao < 1) return;
+    setEnviandoAvaliacao(true);
+    try {
+      await api.post(`/chamados/${id}/avaliacao`, {
+        nota: notaAvaliacao,
+        comentario: comentarioAvaliacao.trim() || undefined,
+      });
+      await carregarChamado();
+    } catch (err) {
+      Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível enviar a avaliação.');
+    } finally {
+      setEnviandoAvaliacao(false);
+    }
+  }
+
   if (carregando) {
     return (
       <View style={styles.centro}>
@@ -88,6 +104,7 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   // O usuário só inicia via solicitação (fica pendente aguardando o técnico).
   // Quando o técnico abre direto, a sessão já chega ATIVA (cai em chatAtivo).
   const aguardandoTecnico = chatPendente && sessaoChat.iniciadoPor === 'USUARIO';
+  const podeAvaliar = (chamado.status === 'RESOLVIDO' || chamado.status === 'FECHADO') && !!chamado.tecnicoId;
 
   return (
     <KeyboardAvoidingView
@@ -118,9 +135,7 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           <View style={styles.metaLista}>
             {chamado.tecnico && (
               <View style={styles.metaLinha}>
-                <View style={styles.metaAvatar}>
-                  <Text style={styles.metaAvatarTexto}>{iniciais(chamado.tecnico.nome)}</Text>
-                </View>
+                <Avatar uri={chamado.tecnico.avatar} nome={chamado.tecnico.nome} size={20} cor={cores.azul} fonteSize={9} />
                 <Text style={styles.metaTexto}>Técnico: {chamado.tecnico.nome}</Text>
               </View>
             )}
@@ -173,6 +188,46 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Avaliação */}
+        {podeAvaliar && (
+          <View style={styles.avaliacaoCard}>
+            {chamado.avaliacao ? (
+              <>
+                <Text style={styles.avaliacaoTitulo}>Sua avaliação</Text>
+                <Estrelas valor={chamado.avaliacao.nota} tamanho={22} />
+                {chamado.avaliacao.comentario ? (
+                  <Text style={styles.avaliacaoComentarioTexto}>{chamado.avaliacao.comentario}</Text>
+                ) : null}
+                <Text style={styles.avaliacaoData}>Enviada {tempoRelativo(chamado.avaliacao.criadoEm)}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.avaliacaoTitulo}>Como foi o atendimento?</Text>
+                <Text style={styles.avaliacaoSubtitulo}>Avalie o técnico que resolveu seu chamado</Text>
+                <Estrelas valor={notaAvaliacao} onMudar={setNotaAvaliacao} />
+                <TextInput
+                  style={[styles.avaliacaoInput, { height: 70, textAlignVertical: 'top' }]}
+                  placeholder="Comentário (opcional)"
+                  placeholderTextColor={cores.placeholder}
+                  multiline
+                  value={comentarioAvaliacao}
+                  onChangeText={setComentarioAvaliacao}
+                />
+                <TouchableOpacity
+                  style={[styles.botaoAvaliar, (notaAvaliacao < 1 || enviandoAvaliacao) && { opacity: 0.5 }]}
+                  onPress={handleAvaliar}
+                  disabled={notaAvaliacao < 1 || enviandoAvaliacao}
+                >
+                  {enviandoAvaliacao
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={styles.botaoAvaliarTexto}>Enviar avaliação</Text>
+                  }
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
         {/* Descrição */}
         <Text style={styles.secaoTitulo}>Descrição</Text>
         <View style={comum.card}>
@@ -187,9 +242,7 @@ export default function DetalheChamadoScreen({ route, navigation }) {
         {chamado.comentarios.map((c) => (
           <View key={c.id} style={styles.comentario}>
             <View style={styles.comentarioTopo}>
-              <View style={styles.comentarioAvatar}>
-                <Text style={styles.comentarioAvatarTexto}>{iniciais(c.autor.nome)}</Text>
-              </View>
+              <Avatar uri={c.autor.avatar} nome={c.autor.nome} size={28} cor={cores.cardBorda} fonteSize={10} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.comentarioAutor}>{c.autor.nome}
                   <Text style={styles.comentarioPerfil}> · {c.autor.perfil}</Text>
@@ -235,11 +288,11 @@ const styles = StyleSheet.create({
 
   hero: { ...comum.card, marginBottom: espaco.lg },
   statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: raio.sm, marginBottom: 12 },
-  statusBadgeTexto: { fontSize: 11, fontWeight: '700' },
-  titulo: { color: cores.texto, fontSize: 20, fontWeight: '800', marginBottom: 10 },
+  statusBadgeTexto: { fontSize: 11, fontFamily: fontInter.bold },
+  titulo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, marginBottom: 10 },
   chipsLinha: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: raio.sm },
-  chipTexto: { color: cores.textoSecundario, fontSize: 11, fontWeight: '700' },
+  chipTexto: { color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold },
 
   metaLista: { gap: 8, borderTopWidth: 1, borderTopColor: cores.cardBorda, paddingTop: 12 },
   metaLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -248,7 +301,7 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10, backgroundColor: cores.azul,
     justifyContent: 'center', alignItems: 'center',
   },
-  metaAvatarTexto: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  metaAvatarTexto: { color: '#fff', fontSize: 9, fontFamily: fontInter.bold },
   metaTexto: { color: cores.textoSecundario, fontSize: 13 },
 
   secaoChat: { marginBottom: espaco.lg },
@@ -260,7 +313,7 @@ const styles = StyleSheet.create({
   botaoChatPendente: { backgroundColor: cores.card, borderWidth: 1, borderColor: cores.aviso },
   botaoChatHistorico: { backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda },
   botaoChatDesabilitado: { backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda },
-  botaoChatTexto: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  botaoChatTexto: { color: '#fff', fontSize: 15, fontFamily: fontInter.bold },
 
   conviteCard: { ...comum.card },
   convitePergunta: { color: cores.texto, fontSize: 14, marginBottom: 12 },
@@ -268,10 +321,22 @@ const styles = StyleSheet.create({
   botaoConvite: { flex: 1, paddingVertical: 12, borderRadius: raio.sm, alignItems: 'center' },
   botaoRecusar: { backgroundColor: cores.fundo, borderWidth: 1, borderColor: cores.erro },
   botaoAceitar: { backgroundColor: cores.azul },
-  botaoConviteTexto: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  botaoConviteTexto: { color: '#fff', fontSize: 14, fontFamily: fontInter.bold },
+
+  avaliacaoCard: { ...comum.card, marginBottom: espaco.lg },
+  avaliacaoTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontInter.bold, marginBottom: 4 },
+  avaliacaoSubtitulo: { color: cores.textoSecundario, fontSize: 13, marginBottom: 14 },
+  avaliacaoInput: { ...comum.input, marginTop: 14 },
+  avaliacaoComentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginTop: 12 },
+  avaliacaoData: { color: cores.textoTerciario, fontSize: 11, marginTop: 10 },
+  botaoAvaliar: {
+    backgroundColor: cores.azul, borderRadius: raio.md,
+    paddingVertical: 14, alignItems: 'center', marginTop: 16,
+  },
+  botaoAvaliarTexto: { color: '#fff', fontSize: 15, fontFamily: fontInter.bold },
 
   secaoTitulo: {
-    color: cores.textoSecundario, fontSize: 11, fontWeight: '700',
+    color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10, marginTop: 8,
   },
   descricao: { color: cores.texto, fontSize: 15, lineHeight: 22 },
@@ -283,8 +348,8 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: cores.cardBorda,
     justifyContent: 'center', alignItems: 'center',
   },
-  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontWeight: '700' },
-  comentarioAutor: { color: cores.texto, fontWeight: '700', fontSize: 13 },
+  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontFamily: fontInter.bold },
+  comentarioAutor: { color: cores.texto, fontFamily: fontInter.bold, fontSize: 13 },
   comentarioPerfil: { color: cores.textoTerciario, fontWeight: '400' },
   comentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
   comentarioData: { color: cores.textoTerciario, fontSize: 11, marginTop: 1 },
@@ -298,5 +363,5 @@ const styles = StyleSheet.create({
     backgroundColor: cores.azul, borderRadius: raio.sm,
     width: 44, justifyContent: 'center', alignItems: 'center',
   },
-  botaoEnviarTexto: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  botaoEnviarTexto: { color: '#fff', fontSize: 20, fontFamily: fontInter.bold },
 });

@@ -5,15 +5,11 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../services/api';
-import { cores, espaco, raio } from '../theme';
+import { cores, espaco, raio, fontInter } from '../theme';
 import { tempoRelativo } from '../utils/tempoRelativo';
+import Avatar from '../components/Avatar';
 
 const STATUS_LABEL = { PENDENTE: 'Pendente', ATIVA: 'Ativo', ENCERRADA: 'Encerrado' };
-
-function iniciais(nome = '') {
-  const partes = nome.trim().split(' ');
-  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
-}
 
 export default function ChatsListScreen({ navigation, route }) {
   const isTecnico = route?.params?.isTecnico ?? false;
@@ -56,9 +52,7 @@ export default function ChatsListScreen({ navigation, route }) {
     const ultima = item.ultimaMensagem;
     return (
       <TouchableOpacity style={styles.linha} onPress={() => abrirChat(item)}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarTexto}>{iniciais(item.contato?.nome)}</Text>
-        </View>
+        <Avatar uri={item.contato?.avatar} nome={item.contato?.nome} size={48} fonteSize={16} />
 
         <View style={styles.conteudo}>
           <View style={styles.linhaTopo}>
@@ -130,8 +124,8 @@ const styles = StyleSheet.create({
   centro: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: cores.fundo },
 
   header: { paddingHorizontal: espaco.xl, paddingTop: 16, paddingBottom: 8 },
-  logo: { color: cores.texto, fontSize: 14, fontWeight: '800', opacity: 0.6 },
-  headerTitulo: { color: cores.texto, fontSize: 22, fontWeight: '800', marginTop: 2 },
+  logo: { color: cores.texto, fontSize: 14, fontFamily: fontInter.extrabold, opacity: 0.6 },
+  headerTitulo: { color: cores.texto, fontSize: 22, fontFamily: fontInter.extrabold, marginTop: 2 },
 
   lista: { paddingBottom: 20 },
   linha: {
@@ -143,11 +137,11 @@ const styles = StyleSheet.create({
     width: 48, height: 48, borderRadius: 24, backgroundColor: cores.azul,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  avatarTexto: { color: '#fff', fontSize: 16, fontFamily: fontInter.bold },
 
   conteudo: { flex: 1 },
   linhaTopo: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  nome: { color: cores.texto, fontSize: 15, fontWeight: '700', flex: 1 },
+  nome: { color: cores.texto, fontSize: 15, fontFamily: fontInter.bold, flex: 1 },
   hora: { color: cores.textoTerciario, fontSize: 11 },
   chamadoTitulo: { color: cores.textoTerciario, fontSize: 12, marginTop: 1 },
   previa: { color: cores.textoSecundario, fontSize: 13, marginTop: 3 },
@@ -159,7 +153,7 @@ const styles = StyleSheet.create({
     minWidth: 20, height: 20, paddingHorizontal: 6,
     justifyContent: 'center', alignItems: 'center',
   },
-  badgeNaoLidasTexto: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  badgeNaoLidasTexto: { color: '#fff', fontSize: 11, fontFamily: fontInter.bold },
 
   listaVazia: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   vazioTexto: { color: cores.textoTerciario, fontSize: 15 },

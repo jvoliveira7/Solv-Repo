@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { conectarSocket } from '../services/socketService';
 import { useAuth } from '../context/AuthContext';
+import Avatar from '../components/Avatar';
+import { fontInter } from '../theme';
 
 const PERFIL_ABREV = { TECNICO: 'TI', ADMIN: 'TI', USUARIO: '' };
 
@@ -123,32 +125,40 @@ export default function ChatScreen({ route, navigation }) {
     const minha = item.autor.id === usuario.id;
     const abrev = PERFIL_ABREV[item.autor.perfil];
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onLongPress={() => !encerrado && setRespondendoA(item)}
-        style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}
-      >
+      <View style={[styles.linhaMensagem, minha ? styles.linhaMensagemMinha : styles.linhaMensagemOutra]}>
         {!minha && (
-          <Text style={styles.bolhaAutor}>
-            {item.autor.nome}{abrev ? ` · ${abrev}` : ''}
-          </Text>
+          <Avatar uri={item.autor.avatar} nome={item.autor.nome} size={26} style={styles.avatarMensagem} />
         )}
-        <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
-          {item.respostaA && (
-            <View style={[styles.citacao, minha && styles.citacaoMinha]}>
-              <Text style={[styles.citacaoAutor, minha && styles.citacaoAutorMinha]}>{item.respostaA.autor.nome}</Text>
-              <Text style={[styles.citacaoTexto, minha && styles.citacaoTextoMinha]} numberOfLines={1}>{item.respostaA.texto}</Text>
-            </View>
-          )}
-          <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
-          <View style={styles.bolhaRodape}>
-            <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
-              {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onLongPress={() => !encerrado && setRespondendoA(item)}
+          style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}
+        >
+          {!minha && (
+            <Text style={styles.bolhaAutor}>
+              {item.autor.nome}{abrev ? ` · ${abrev}` : ''}
             </Text>
-            {minha && <Ticks status={item.status} />}
+          )}
+          <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
+            {item.respostaA && (
+              <View style={[styles.citacao, minha && styles.citacaoMinha]}>
+                <Text style={[styles.citacaoAutor, minha && styles.citacaoAutorMinha]}>{item.respostaA.autor.nome}</Text>
+                <Text style={[styles.citacaoTexto, minha && styles.citacaoTextoMinha]} numberOfLines={1}>{item.respostaA.texto}</Text>
+              </View>
+            )}
+            <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
+            <View style={styles.bolhaRodape}>
+              <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
+                {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+              {minha && <Ticks status={item.status} />}
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        {minha && (
+          <Avatar uri={usuario.avatar} nome={usuario.nome} size={26} style={styles.avatarMensagem} />
+        )}
+      </View>
     );
   }
 
@@ -167,6 +177,8 @@ export default function ChatScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.voltarBotao} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.voltarSeta}>←</Text>
         </TouchableOpacity>
+
+        <Avatar uri={contato?.avatar} nome={contato?.nome} size={36} />
 
         <View style={styles.headerInfo}>
           <Text style={styles.headerNome}>{contato?.nome || 'Chat'}</Text>
@@ -266,25 +278,29 @@ const styles = StyleSheet.create({
   voltarBotao: { paddingRight: 2 },
   voltarSeta: { color: '#fff', fontSize: 22 },
   headerInfo: { flex: 1 },
-  headerNome: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  headerNome: { color: '#fff', fontSize: 16, fontFamily: fontInter.bold },
   statusLinha: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   statusPonto: { width: 7, height: 7, borderRadius: 4, marginRight: 5 },
-  statusTexto: { color: '#22c55e', fontSize: 12, fontWeight: '600' },
+  statusTexto: { color: '#22c55e', fontSize: 12, fontFamily: fontInter.semibold },
   statusSeparador: { color: '#555', fontSize: 12 },
   headerChamado: { color: '#777', fontSize: 12, flexShrink: 1 },
 
   botaoEncerrar: { backgroundColor: '#ef444422', borderWidth: 1, borderColor: '#ef4444', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  botaoEncerrarTexto: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
+  botaoEncerrarTexto: { color: '#ef4444', fontSize: 13, fontFamily: fontInter.semibold },
 
   listaMensagens: { padding: 16, paddingBottom: 8 },
   pillWrap: { alignItems: 'center', marginBottom: 16 },
   pill: { backgroundColor: '#151824', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
   pillTexto: { color: '#888', fontSize: 12 },
 
-  bolhaWrap: { maxWidth: '78%', marginBottom: 14 },
-  bolhaWrapMinha: { alignSelf: 'flex-end' },
-  bolhaWrapOutra: { alignSelf: 'flex-start' },
-  bolhaAutor: { color: '#5b8cff', fontSize: 12, fontWeight: '700', marginBottom: 5, marginLeft: 2 },
+  linhaMensagem: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14, gap: 6 },
+  linhaMensagemMinha: { justifyContent: 'flex-end' },
+  linhaMensagemOutra: { justifyContent: 'flex-start' },
+  avatarMensagem: { marginBottom: 2 },
+  bolhaWrap: { maxWidth: '74%' },
+  bolhaWrapMinha: {},
+  bolhaWrapOutra: {},
+  bolhaAutor: { color: '#5b8cff', fontSize: 12, fontFamily: fontInter.bold, marginBottom: 5, marginLeft: 2 },
   bolha: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
   bolhaMinha: { backgroundColor: '#2d6fff', borderBottomRightRadius: 4 },
   bolhaOutra: { backgroundColor: '#151824', borderBottomLeftRadius: 4 },
@@ -301,7 +317,7 @@ const styles = StyleSheet.create({
     borderRadius: 6, paddingVertical: 5, paddingHorizontal: 8, marginBottom: 6,
   },
   citacaoMinha: { backgroundColor: '#ffffff22', borderLeftColor: '#fff' },
-  citacaoAutor: { color: '#5b8cff', fontSize: 11, fontWeight: '700' },
+  citacaoAutor: { color: '#5b8cff', fontSize: 11, fontFamily: fontInter.bold },
   citacaoAutorMinha: { color: '#e8efff' },
   citacaoTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
   citacaoTextoMinha: { color: '#ffffffcc' },
@@ -314,7 +330,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1e212c',
   },
   respostaPreviewLinha: { flex: 1, borderLeftWidth: 3, borderLeftColor: '#2d6fff', paddingLeft: 10 },
-  respostaPreviewAutor: { color: '#5b8cff', fontSize: 12, fontWeight: '700' },
+  respostaPreviewAutor: { color: '#5b8cff', fontSize: 12, fontFamily: fontInter.bold },
   respostaPreviewTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
   respostaPreviewFechar: { color: '#666', fontSize: 16, paddingHorizontal: 8 },
 
