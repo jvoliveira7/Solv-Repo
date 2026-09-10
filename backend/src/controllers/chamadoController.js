@@ -70,7 +70,11 @@ async function listar(req, res) {
   try {
     const chamados = await prisma.chamado.findMany({
       where,
-      orderBy: { criadoEm: 'desc' },
+      // Fila por urgência: prioridade mais alta primeiro (enum declarado
+      // BAIXA→CRITICA, então 'desc' inverte pra CRITICA→BAIXA) e, dentro da
+      // mesma prioridade, o mais antigo primeiro — evita que um chamado
+      // urgente antigo fique enterrado embaixo de um banal recém-aberto.
+      orderBy: [{ prioridade: 'desc' }, { criadoEm: 'asc' }],
       include: {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
         tecnico: { select: { id: true, nome: true, avatar: true } },

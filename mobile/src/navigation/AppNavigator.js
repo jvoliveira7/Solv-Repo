@@ -18,6 +18,7 @@ import GuidedModeScreen from '../screens/user/GuidedModeScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ChatsListScreen from '../screens/ChatsListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import AjustesScreen from '../screens/AjustesScreen';
 import PainelTecnicoScreen from '../screens/tech/PainelTecnicoScreen';
 import DetalheChamadoTecnicoScreen from '../screens/tech/DetalheChamadoTecnicoScreen';
 
@@ -48,6 +49,7 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Ajustes" component={AjustesScreen} options={{ title: 'Ajustes' }} />
       <Stack.Screen name="NovoChamado" component={NovoChamadoScreen} options={{ title: 'Novo Chamado' }} />
       <Stack.Screen name="DetalheChamado" component={DetalheChamadoScreen} options={{ title: 'Chamado' }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
@@ -148,6 +150,7 @@ function PainelStack() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="Painel" component={PainelTecnicoScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Ajustes" component={AjustesScreen} options={{ title: 'Ajustes' }} />
       <Stack.Screen name="DetalheChamadoTecnico" component={DetalheChamadoTecnicoScreen} options={{ title: 'Chamado' }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
     </Stack.Navigator>

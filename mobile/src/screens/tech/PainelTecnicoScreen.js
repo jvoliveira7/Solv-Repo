@@ -1,52 +1,59 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity,
+  View, Text, SectionList, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { cores, espaco, raio, statusCor, statusLabel, prioridadeCor, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
+import Avatar from '../../components/Avatar';
 
 const FILTROS = ['ABERTO', 'EM_ATENDIMENTO', 'RESOLVIDO'];
+// A aba "Abertos" busca também EM_ATENDIMENTO/AGUARDANDO pra poder montar a
+// seção "Meus chamados ativos" — o badge de contagem continua refletindo só
+// o status ABERTO de verdade (igual à seção "Sem técnico").
 const FILTRO_STATUS = {
-  ABERTO: 'ABERTO',
+  ABERTO: 'ABERTO,EM_ATENDIMENTO,AGUARDANDO',
   EM_ATENDIMENTO: 'EM_ATENDIMENTO,AGUARDANDO',
   RESOLVIDO: 'RESOLVIDO,FECHADO',
 };
 const FILTRO_LABEL = { ABERTO: 'Abertos', EM_ATENDIMENTO: 'Em andamento', RESOLVIDO: 'Resolvidos' };
-const ORDEM_PRIORIDADE = { CRITICA: 0, ALTA: 1, MEDIA: 2, BAIXA: 3 };
 
-function iniciais(nome = '') {
-  const partes = nome.trim().split(' ');
-  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
-}
+const CATEGORIA_ICONE = {
+  HARDWARE: '🖥️',
+  SOFTWARE: '💾',
+  REDE: '📶',
+  ACESSO: '🔑',
+  IMPRESSORA: '🖨️',
+  OUTRO: '⋯',
+};
 
-// RN10: prioriza chamados sem técnico atribuído, depois por nível de
-// prioridade (Urgente/Crítica → Baixa), depois por ordem cronológica
-// (mais antigo primeiro, como uma fila de verdade).
-function ordenarFila(chamados) {
-  return [...chamados].sort((a, b) => {
-    const semTecnicoA = a.tecnicoId ? 1 : 0;
-    const semTecnicoB = b.tecnicoId ? 1 : 0;
-    if (semTecnicoA !== semTecnicoB) return semTecnicoA - semTecnicoB;
+// Escalonamento visual por idade do chamado (desde criadoEm) — quanto mais
+// tempo parado, mais chamativo o alerta. Limites são um ponto de partida.
+const ESCALONAMENTO_IDADE = {
+  normal: { cor: cores.textoTerciario, icone: '🕓' },
+  aviso: { cor: cores.aviso, icone: '⏱️' },
+  alerta: { cor: cores.erro, icone: '🔥' },
+};
 
-    const prioA = ORDEM_PRIORIDADE[a.prioridade] ?? 4;
-    const prioB = ORDEM_PRIORIDADE[b.prioridade] ?? 4;
-    if (prioA !== prioB) return prioA - prioB;
-
-    return new Date(a.criadoEm) - new Date(b.criadoEm);
-  });
+function nivelIdade(dataCriacao) {
+  const horas = (Date.now() - new Date(dataCriacao).getTime()) / 3600000;
+  if (horas >= 24) return 'alerta';
+  if (horas >= 4) return 'aviso';
+  return 'normal';
 }
 
 export default function PainelTecnicoScreen({ navigation }) {
-  const { usuario, logout } = useAuth();
+  const { usuario } = useAuth();
   const [chamados, setChamados] = useState([]);
   const [contagens, setContagens] = useState({ ABERTO: 0, EM_ATENDIMENTO: 0, RESOLVIDO: 0 });
   const [carregando, setCarregando] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
   const [filtro, setFiltro] = useState('ABERTO');
+  const [assumindoId, setAssumindoId] = useState(null);
 
   async function carregarTudo() {
     try {
@@ -54,7 +61,7 @@ export default function PainelTecnicoScreen({ navigation }) {
         api.get('/chamados', { params: { status: FILTRO_STATUS[filtro] } }),
         api.get('/chamados/contagem'),
       ]);
-      setChamados(ordenarFila(chamadosResp.data));
+      setChamados(chamadosResp.data);
       setContagens(contagensResp.data);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar os chamados.');
@@ -66,11 +73,29 @@ export default function PainelTecnicoScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { carregarTudo(); }, [filtro]));
 
+  async function handleAssumir(id) {
+    setAssumindoId(id);
+    try {
+      await api.patch(`/chamados/${id}/status`, { status: 'EM_ATENDIMENTO' });
+      await carregarTudo();
+    } catch (err) {
+      Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível assumir o chamado.');
+    } finally {
+      setAssumindoId(null);
+    }
+  }
+
   function renderChamado({ item }) {
+    const semTecnico = !item.tecnicoId;
+    const aguardando = item.status === 'AGUARDANDO';
     const chatDisponivel = item.chat?.status === 'ATIVA' || item.chat?.status === 'PENDENTE';
+    const assumindo = assumindoId === item.id;
+    const idade = ESCALONAMENTO_IDADE[nivelIdade(item.criadoEm)];
+
     return (
       <TouchableOpacity
         style={styles.card}
+        activeOpacity={0.8}
         onPress={() => navigation.navigate('DetalheChamadoTecnico', { id: item.id })}
       >
         <View style={styles.cardTopo}>
@@ -86,15 +111,11 @@ export default function PainelTecnicoScreen({ navigation }) {
             </View>
 
             <View style={styles.solicitanteLinha}>
-              <View style={styles.avatarPequeno}>
-                <Text style={styles.avatarPequenoTexto}>{iniciais(item.solicitante.nome)}</Text>
-              </View>
-              <Text style={styles.cardInfo}>{item.solicitante.nome} · {tempoRelativo(item.criadoEm)}</Text>
-              {!item.tecnicoId && (
-                <View style={styles.tagSemTecnico}>
-                  <Text style={styles.tagSemTecnicoTexto}>Sem técnico</Text>
-                </View>
-              )}
+              <Avatar uri={item.solicitante.avatar} nome={item.solicitante.nome} size={22} cor={cores.roxo} fonteSize={9} />
+              <Text style={styles.cardInfo} numberOfLines={1}>{item.solicitante.nome}</Text>
+              <Text style={styles.categoriaTag} numberOfLines={1}>
+                {CATEGORIA_ICONE[item.categoria] || CATEGORIA_ICONE.OUTRO} {item.categoria}
+              </Text>
             </View>
 
             <View style={styles.cardRodape}>
@@ -103,38 +124,92 @@ export default function PainelTecnicoScreen({ navigation }) {
                   {statusLabel[item.status]}
                 </Text>
               </View>
+              <Text style={[styles.tempoTexto, { color: idade.cor }]}>
+                {idade.icone} {tempoRelativo(item.criadoEm)}
+              </Text>
               {chatDisponivel && (
-                <Text style={styles.chatDisponivel}>💬 Chat disponível</Text>
+                <Text style={styles.chatDisponivel}>💬 Chat</Text>
               )}
               {item._count.comentarios > 0 && (
                 <Text style={styles.cardComentarios}>📝 {item._count.comentarios}</Text>
               )}
             </View>
+
+            {aguardando && (
+              <View style={styles.aguardandoFaixa}>
+                <Text style={styles.aguardandoTexto}>
+                  ⏳ Aguardando resposta {tempoRelativo(item.atualizadoEm)}
+                </Text>
+              </View>
+            )}
+
+            {semTecnico && (
+              <TouchableOpacity
+                style={[styles.botaoAssumir, assumindo && { opacity: 0.6 }]}
+                onPress={() => handleAssumir(item.id)}
+                disabled={assumindo}
+              >
+                {assumindo
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.botaoAssumirTexto}>Assumir chamado</Text>
+                }
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>
     );
   }
 
+  const secoes = filtro === 'ABERTO'
+    ? [
+        { chave: 'sem-tecnico', titulo: 'Sem técnico', dados: chamados.filter((c) => !c.tecnicoId) },
+        {
+          chave: 'meus-ativos',
+          titulo: 'Meus chamados ativos',
+          dados: chamados.filter((c) => c.tecnicoId === usuario?.id && (c.status === 'EM_ATENDIMENTO' || c.status === 'AGUARDANDO')),
+        },
+      ]
+    : [{ chave: 'lista', titulo: null, dados: chamados }];
+
+  const sections = secoes
+    .filter((s) => s.dados.length > 0)
+    .map((s) => ({ key: s.chave, title: s.titulo, data: s.dados }));
+
   return (
     <View style={styles.container}>
       <View style={styles.cabecalho}>
-        <View>
+        <View style={styles.cabecalhoTopo}>
           <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
-          <Text style={styles.saudacao}>Olá, {usuario?.nome?.split(' ')[0]}</Text>
+
+          <View style={styles.acoesTopo}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Ajustes')}
+              style={styles.botaoIcone}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="settings-outline" size={20} color={cores.textoSecundario} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.navigate('PerfilTab')}>
+              <View style={styles.avatarWrap}>
+                <Avatar uri={usuario?.avatar} nome={usuario?.nome} size={36} cor={cores.roxo} />
+                <View style={styles.pontoOnline} />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity
-          onPress={() => Alert.alert('Sair da conta?', '', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Sair', style: 'destructive', onPress: logout },
-          ])}
-          style={styles.avatarGrande}
-        >
-          <Text style={styles.avatarGrandeTexto}>{iniciais(usuario?.nome)}</Text>
-        </TouchableOpacity>
+
+        <Text style={styles.saudacao}>Olá, {usuario?.nome?.split(' ')[0]}</Text>
+        <Text style={styles.subtitulo}>Fila de atendimento</Text>
       </View>
 
-      <View style={styles.abas}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.abasScroll}
+        contentContainerStyle={styles.abas}
+      >
         {FILTROS.map((item) => {
           const ativo = filtro === item;
           const contagem = contagens[item] || 0;
@@ -144,7 +219,7 @@ export default function PainelTecnicoScreen({ navigation }) {
               style={[styles.aba, ativo && styles.abaAtiva]}
               onPress={() => setFiltro(item)}
             >
-              <Text style={[styles.abaTexto, ativo && styles.abaTextoAtiva]}>
+              <Text style={[styles.abaTexto, ativo && styles.abaTextoAtiva]} numberOfLines={1}>
                 {FILTRO_LABEL[item]}
               </Text>
               {contagem > 0 && (
@@ -157,16 +232,23 @@ export default function PainelTecnicoScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {carregando
         ? <ActivityIndicator size="large" color={cores.azul} style={{ marginTop: 40 }} />
         : (
-          <FlatList
-            data={chamados}
+          <SectionList
+            sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={renderChamado}
-            contentContainerStyle={chamados.length === 0 ? styles.listaVazia : styles.lista}
+            renderSectionHeader={({ section }) => section.title ? (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderTexto}>{section.title}</Text>
+                <Text style={styles.sectionHeaderContagem}>{section.data.length}</Text>
+              </View>
+            ) : null}
+            stickySectionHeadersEnabled={false}
+            contentContainerStyle={sections.length === 0 ? styles.listaVazia : styles.lista}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}
@@ -186,26 +268,34 @@ export default function PainelTecnicoScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: espaco.xl, paddingTop: 16, paddingBottom: 12,
+  cabecalho: { padding: espaco.xl, paddingTop: 16, paddingBottom: 16 },
+  cabecalhoTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  logo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, letterSpacing: -0.5 },
+  acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  botaoIcone: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: cores.card,
+    borderWidth: 1, borderColor: cores.cardBorda, justifyContent: 'center', alignItems: 'center',
   },
-  logo: { color: cores.texto, fontSize: 22, fontFamily: fontInter.extrabold, letterSpacing: -0.5 },
-  saudacao: { color: cores.textoSecundario, fontSize: 13, fontFamily: fontInter.regular, marginTop: 2 },
-  avatarGrande: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: cores.roxo,
-    justifyContent: 'center', alignItems: 'center',
+  avatarWrap: { position: 'relative' },
+  pontoOnline: {
+    position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: 6,
+    backgroundColor: cores.sucesso, borderWidth: 2, borderColor: cores.fundo,
   },
-  avatarGrandeTexto: { color: '#fff', fontSize: 14, fontFamily: fontInter.bold },
+  saudacao: { color: cores.texto, fontSize: 22, fontFamily: fontInter.extrabold, marginTop: espaco.lg },
+  subtitulo: { color: cores.textoSecundario, fontSize: 14, marginTop: 3 },
 
-  abas: { flexDirection: 'row', paddingHorizontal: espaco.lg, gap: 8, marginBottom: 8 },
+  // altura fixa pra blindar contra qualquer stretch implícito do flexbox
+  // (a ScrollView horizontal, sem isso, deixava os chips virarem retângulos
+  // gigantes verticalmente em vez de pílulas pequenas)
+  abasScroll: { flexGrow: 0, flexShrink: 0, maxHeight: 52 },
+  abas: { paddingHorizontal: espaco.lg, gap: 6, marginBottom: 8, alignItems: 'flex-start' },
   aba: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: raio.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    height: 40, paddingHorizontal: 12, borderRadius: raio.md,
     backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda,
   },
   abaAtiva: { backgroundColor: cores.azulSuave, borderColor: cores.azul },
-  abaTexto: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontInter.semibold },
+  abaTexto: { color: cores.textoSecundario, fontSize: 12, lineHeight: 16, fontFamily: fontInter.semibold },
   abaTextoAtiva: { color: cores.azulClaro },
   abaContagem: {
     backgroundColor: cores.cardBorda, borderRadius: raio.pill,
@@ -214,6 +304,16 @@ const styles = StyleSheet.create({
   abaContagemAtiva: { backgroundColor: cores.azul },
   abaContagemTexto: { color: cores.textoSecundario, fontSize: 10, fontFamily: fontInter.bold },
   abaContagemTextoAtiva: { color: '#fff' },
+
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: espaco.lg, marginTop: 12, marginBottom: 8,
+  },
+  sectionHeaderTexto: {
+    color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
+    letterSpacing: 0.6, textTransform: 'uppercase',
+  },
+  sectionHeaderContagem: { color: cores.textoTerciario, fontSize: 11, fontFamily: fontInter.semibold },
 
   lista: { padding: espaco.lg, paddingTop: 4 },
   card: {
@@ -228,22 +328,26 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: raio.sm, alignSelf: 'flex-start' },
   badgeTexto: { fontSize: 10, fontFamily: fontInter.bold },
 
-  solicitanteLinha: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  avatarPequeno: {
-    width: 22, height: 22, borderRadius: 11, backgroundColor: cores.cardBorda,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  avatarPequenoTexto: { color: cores.textoSecundario, fontSize: 9, fontFamily: fontInter.bold },
-  cardInfo: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontInter.regular },
-  tagSemTecnico: {
-    backgroundColor: cores.erroSuave, borderRadius: raio.sm,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  tagSemTecnicoTexto: { color: cores.erro, fontSize: 10, fontFamily: fontInter.semibold },
+  solicitanteLinha: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  cardInfo: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontInter.regular, flexShrink: 1, maxWidth: '55%' },
+  categoriaTag: { color: cores.textoTerciario, fontSize: 12, fontFamily: fontInter.regular },
 
-  cardRodape: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardRodape: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  tempoTexto: { fontSize: 12, fontFamily: fontInter.semibold },
   chatDisponivel: { color: cores.azulClaro, fontSize: 12, fontFamily: fontInter.semibold },
   cardComentarios: { color: cores.textoTerciario, fontSize: 12, fontFamily: fontInter.regular },
+
+  aguardandoFaixa: {
+    backgroundColor: cores.infoSuave, borderRadius: raio.sm,
+    paddingHorizontal: 10, paddingVertical: 7, marginTop: 10,
+  },
+  aguardandoTexto: { color: cores.info, fontSize: 12, fontFamily: fontInter.semibold },
+
+  botaoAssumir: {
+    backgroundColor: cores.azul, borderRadius: raio.sm,
+    paddingVertical: 11, alignItems: 'center', marginTop: 12,
+  },
+  botaoAssumirTexto: { color: '#fff', fontSize: 13, fontFamily: fontInter.bold },
 
   listaVazia: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   vazioTexto: { color: cores.textoTerciario, fontSize: 15, fontFamily: fontInter.regular },
