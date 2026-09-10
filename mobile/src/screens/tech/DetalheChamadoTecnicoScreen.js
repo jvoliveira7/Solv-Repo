@@ -210,10 +210,14 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
 
         {podeConvidarChat && chamado.status === 'EM_ATENDIMENTO' && (
           <TouchableOpacity
-            style={[styles.botaoChat, styles.botaoChatConvidar]}
+            style={[styles.botaoChat, abrindoDireto && { opacity: 0.6 }]}
             onPress={() => { setAbrindoDireto(true); handleAbrirChatDireto(); }}
+            disabled={abrindoDireto}
           >
-            <Text style={[styles.botaoChatTexto, { color: cores.azulClaro }]}>💬 Abrir chat com o usuário</Text>
+            {abrindoDireto
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={styles.botaoChatTexto}>💬 Abrir chat com o usuário</Text>
+            }
           </TouchableOpacity>
         )}
 
@@ -234,10 +238,10 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
         {chamado.avaliacao && (
           <>
             <Text style={styles.secaoTitulo}>Avaliação do usuário</Text>
-            <View style={[comum.card, { marginBottom: espaco.lg }]}>
+            <View style={styles.avaliacaoCard}>
               <Estrelas valor={chamado.avaliacao.nota} tamanho={20} />
               {chamado.avaliacao.comentario ? (
-                <Text style={[styles.descricao, { fontSize: 14, marginTop: 10 }]}>{chamado.avaliacao.comentario}</Text>
+                <Text style={styles.avaliacaoComentarioTexto}>{chamado.avaliacao.comentario}</Text>
               ) : null}
             </View>
           </>
@@ -265,8 +269,8 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
 
         {/* Ações */}
         {proximosStatus.length > 0 && (
-          <>
-            <Text style={styles.secaoTitulo}>Anotação (opcional)</Text>
+          <View style={styles.acoesCard}>
+            <Text style={[styles.secaoTitulo, styles.secaoTituloTopo]}>Anotação (opcional)</Text>
             <TextInput
               style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
               placeholder="Registre o que foi feito ou observado..."
@@ -293,7 +297,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
-          </>
+          </View>
         )}
 
       </ScrollView>
@@ -317,22 +321,15 @@ const styles = StyleSheet.create({
   metaLista: { gap: 8, borderTopWidth: 1, borderTopColor: cores.cardBorda, paddingTop: 12 },
   metaLinha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaIcone: { fontSize: 13, width: 20 },
-  metaAvatar: {
-    width: 20, height: 20, borderRadius: 10, backgroundColor: cores.roxo,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  metaAvatarTexto: { color: '#fff', fontSize: 9, fontFamily: fontInter.bold },
   metaTexto: { color: cores.textoSecundario, fontSize: 13 },
 
   botaoChat: {
-    backgroundColor: cores.card, borderWidth: 1, borderColor: cores.azul,
-    borderRadius: raio.md, paddingVertical: 14, alignItems: 'center', marginBottom: espaco.lg,
+    flexDirection: 'row', backgroundColor: cores.azul, borderRadius: raio.md,
+    paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginBottom: espaco.lg,
   },
-  botaoChatTexto: { color: cores.azulClaro, fontSize: 15, fontFamily: fontInter.bold },
-  botaoChatPendente: { borderColor: cores.aviso },
-  botaoChatHistorico: { borderColor: cores.cardBorda },
-  botaoChatConvidar: { borderColor: cores.azul },
-  botaoChatDesabilitado: { borderColor: cores.cardBorda },
+  botaoChatTexto: { color: '#fff', fontSize: 15, fontFamily: fontInter.bold },
+  botaoChatHistorico: { backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda },
+  botaoChatDesabilitado: { backgroundColor: cores.card, borderWidth: 1, borderColor: cores.cardBorda },
 
   conviteCard: { ...comum.card, marginBottom: espaco.lg },
   convitePergunta: { color: cores.texto, fontSize: 14, marginBottom: 12 },
@@ -346,21 +343,21 @@ const styles = StyleSheet.create({
     color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10, marginTop: 8,
   },
+  secaoTituloTopo: { marginTop: 0 },
   descricao: { color: cores.texto, fontSize: 15, lineHeight: 22 },
   vazioTexto: { color: cores.textoTerciario, fontSize: 14 },
 
+  avaliacaoCard: { ...comum.card, marginBottom: espaco.lg },
+  avaliacaoComentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginTop: 10 },
+
   comentario: { ...comum.card, marginBottom: 10 },
   comentarioTopo: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  comentarioAvatar: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: cores.cardBorda,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontFamily: fontInter.bold },
   comentarioAutor: { color: cores.texto, fontFamily: fontInter.bold, fontSize: 13 },
   comentarioPerfil: { color: cores.textoTerciario, fontWeight: '400' },
   comentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
   comentarioData: { color: cores.textoTerciario, fontSize: 11, marginTop: 1 },
 
+  acoesCard: { ...comum.card, marginTop: espaco.sm },
   input: { ...comum.input, marginBottom: espaco.lg },
   acoesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   botaoAcao: {
