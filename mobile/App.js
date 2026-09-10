@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
 import { ChatProvider } from './src/context/ChatContext';
+import { SincronizacaoProvider } from './src/context/SincronizacaoContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { cores } from './src/theme';
 
@@ -34,10 +35,12 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <ChatProvider>
-        <StatusBar style="light" />
-        <AppNavigator />
-      </ChatProvider>
+      <SincronizacaoProvider>
+        <ChatProvider>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </ChatProvider>
+      </SincronizacaoProvider>
     </AuthProvider>
   );
 }

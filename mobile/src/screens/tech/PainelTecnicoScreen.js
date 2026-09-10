@@ -7,9 +7,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { salvarCache, lerCache } from '../../storage/cacheStorage';
 import { cores, espaco, raio, statusCor, statusLabel, prioridadeCor, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
 import Avatar from '../../components/Avatar';
+import OfflineBanner from '../../components/OfflineBanner';
 
 const FILTROS = ['ABERTO', 'EM_ATENDIMENTO', 'RESOLVIDO'];
 // A aba "Abertos" busca também EM_ATENDIMENTO/AGUARDANDO pra poder montar a
@@ -56,6 +58,7 @@ export default function PainelTecnicoScreen({ navigation }) {
   const [assumindoId, setAssumindoId] = useState(null);
 
   async function carregarTudo() {
+    const chaveChamados = `painel_chamados_${filtro}`;
     try {
       const [chamadosResp, contagensResp] = await Promise.all([
         api.get('/chamados', { params: { status: FILTRO_STATUS[filtro] } }),
@@ -63,8 +66,19 @@ export default function PainelTecnicoScreen({ navigation }) {
       ]);
       setChamados(chamadosResp.data);
       setContagens(contagensResp.data);
+      salvarCache(chaveChamados, chamadosResp.data);
+      salvarCache('painel_contagens', contagensResp.data);
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar os chamados.');
+      const [chamadosCache, contagensCache] = await Promise.all([
+        lerCache(chaveChamados),
+        lerCache('painel_contagens'),
+      ]);
+      if (chamadosCache) {
+        setChamados(chamadosCache);
+        if (contagensCache) setContagens(contagensCache);
+      } else {
+        Alert.alert('Erro', 'Não foi possível carregar os chamados.');
+      }
     } finally {
       setCarregando(false);
       setAtualizando(false);
@@ -233,6 +247,8 @@ export default function PainelTecnicoScreen({ navigation }) {
           );
         })}
       </ScrollView>
+
+      <OfflineBanner />
 
       {carregando
         ? <ActivityIndicator size="large" color={cores.azul} style={{ marginTop: 40 }} />

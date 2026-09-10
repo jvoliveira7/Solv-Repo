@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import api from '../../services/api';
+import { useSincronizacao } from '../../context/SincronizacaoContext';
 import { cores, espaco, raio, comum, fontInter } from '../../theme';
 
 const CATEGORIAS = [
@@ -24,6 +24,7 @@ const PRIORIDADE_COR = {
 };
 
 export default function NovoChamadoScreen({ navigation }) {
+  const { criarChamado } = useSincronizacao();
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [categoria, setCategoria] = useState('');
@@ -39,10 +40,14 @@ export default function NovoChamadoScreen({ navigation }) {
 
     setCarregando(true);
     try {
-      await api.post('/chamados', { titulo, descricao, categoria, prioridade, localizacao });
-      Alert.alert('Sucesso', 'Chamado aberto com sucesso!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      const { pendente } = await criarChamado({ titulo, descricao, categoria, prioridade, localizacao });
+      Alert.alert(
+        pendente ? 'Salvo offline' : 'Sucesso',
+        pendente
+          ? 'Sem conexão — o chamado foi salvo e será enviado automaticamente assim que a internet voltar.'
+          : 'Chamado aberto com sucesso!',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     } catch (err) {
       const mensagem = err.response?.data?.erro || err.message || 'Erro ao abrir chamado.';
       Alert.alert('Erro', mensagem);

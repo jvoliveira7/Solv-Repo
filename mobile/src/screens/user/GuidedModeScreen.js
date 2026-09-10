@@ -4,7 +4,7 @@ import {
   ScrollView, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { FLUXO_GUIADO } from '../../utils/fluxoGuiado';
-import api from '../../services/api';
+import { useSincronizacao } from '../../context/SincronizacaoContext';
 import { cores, espaco, raio, comum, fontInter } from '../../theme';
 
 const TOTAL_PASSOS_ESTIMADO = 4;
@@ -79,6 +79,7 @@ export default function GuidedModeScreen({ navigation }) {
 }
 
 function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
+  const { criarChamado } = useSincronizacao();
   const [localizacao, setLocalizacao] = useState('');
   const [enviando, setEnviando] = useState(false);
 
@@ -89,7 +90,7 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
   async function handleAbrir() {
     setEnviando(true);
     try {
-      await api.post('/chamados', {
+      const { pendente } = await criarChamado({
         titulo: resultado.titulo,
         descricao: resultado.descricao,
         categoria: resultado.categoria,
@@ -99,6 +100,10 @@ function ConfirmacaoChamado({ resultado, onVoltar, onReiniciar, navigation }) {
 
       navigation.navigate('HomeTab', { screen: 'Home', params: { chamadoAberto: true } });
       onReiniciar();
+
+      if (pendente) {
+        Alert.alert('Salvo offline', 'Sem conexão — o chamado foi salvo e será enviado automaticamente assim que a internet voltar.');
+      }
     } catch {
       Alert.alert('Erro', 'Não foi possível abrir o chamado.');
     } finally {
