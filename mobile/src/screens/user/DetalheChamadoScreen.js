@@ -3,12 +3,14 @@ import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { useChatSessao } from '../../hooks/useChatSessao';
 import { cores, espaco, raio, comum, statusCor, statusLabel, prioridadeCor, fontInter } from '../../theme';
 import { tempoRelativo } from '../../utils/tempoRelativo';
 import Avatar from '../../components/Avatar';
 import Estrelas from '../../components/Estrelas';
+import AvaliacaoModal from '../../components/AvaliacaoModal';
 
 export default function DetalheChamadoScreen({ route, navigation }) {
   const { id } = route.params;
@@ -16,9 +18,8 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   const [carregando, setCarregando] = useState(true);
   const [comentario, setComentario] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [notaAvaliacao, setNotaAvaliacao] = useState(0);
-  const [comentarioAvaliacao, setComentarioAvaliacao] = useState('');
   const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
+  const [modalAvaliacaoVisivel, setModalAvaliacaoVisivel] = useState(false);
 
   const { sessao: sessaoChat, solicitar } = useChatSessao(id);
 
@@ -26,6 +27,19 @@ export default function DetalheChamadoScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/chamados/${id}`);
       setChamado(data);
+      const podeAvaliarAgora = (data.status === 'RESOLVIDO' || data.status === 'FECHADO') && !!data.tecnicoId;
+      if (podeAvaliarAgora && !data.avaliacao) {
+        // só sugere automaticamente uma vez por chamado — fica marcado no
+        // dispositivo pra não "popar" de novo toda vez que reabrir a tela
+        const chaveSugestao = `@solv:avaliacao_sugerida:${id}`;
+        const jaSugerida = await AsyncStorage.getItem(chaveSugestao);
+        if (!jaSugerida) {
+          await AsyncStorage.setItem(chaveSugestao, '1');
+          // pequeno atraso pra deixar a transição de navegação assentar antes
+          // do modal subir por cima
+          setTimeout(() => setModalAvaliacaoVisivel(true), 450);
+        }
+      }
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar o chamado.');
     } finally {
@@ -70,14 +84,15 @@ export default function DetalheChamadoScreen({ route, navigation }) {
     }
   }
 
-  async function handleAvaliar() {
-    if (notaAvaliacao < 1) return;
+  async function handleAvaliar(nota, comentarioTexto) {
+    if (nota < 1) return;
     setEnviandoAvaliacao(true);
     try {
       await api.post(`/chamados/${id}/avaliacao`, {
-        nota: notaAvaliacao,
-        comentario: comentarioAvaliacao.trim() || undefined,
+        nota,
+        comentario: comentarioTexto?.trim() || undefined,
       });
+      setModalAvaliacaoVisivel(false);
       await carregarChamado();
     } catch (err) {
       Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível enviar a avaliação.');
@@ -189,44 +204,28 @@ export default function DetalheChamadoScreen({ route, navigation }) {
         )}
 
         {/* Avaliação */}
-        {podeAvaliar && (
+        {chamado.avaliacao ? (
           <View style={styles.avaliacaoCard}>
-            {chamado.avaliacao ? (
-              <>
-                <Text style={styles.avaliacaoTitulo}>Sua avaliação</Text>
-                <Estrelas valor={chamado.avaliacao.nota} tamanho={22} />
-                {chamado.avaliacao.comentario ? (
-                  <Text style={styles.avaliacaoComentarioTexto}>{chamado.avaliacao.comentario}</Text>
-                ) : null}
-                <Text style={styles.avaliacaoData}>Enviada {tempoRelativo(chamado.avaliacao.criadoEm)}</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.avaliacaoTitulo}>Como foi o atendimento?</Text>
-                <Text style={styles.avaliacaoSubtitulo}>Avalie o técnico que resolveu seu chamado</Text>
-                <Estrelas valor={notaAvaliacao} onMudar={setNotaAvaliacao} />
-                <TextInput
-                  style={[styles.avaliacaoInput, { height: 70, textAlignVertical: 'top' }]}
-                  placeholder="Comentário (opcional)"
-                  placeholderTextColor={cores.placeholder}
-                  multiline
-                  value={comentarioAvaliacao}
-                  onChangeText={setComentarioAvaliacao}
-                />
-                <TouchableOpacity
-                  style={[styles.botaoAvaliar, (notaAvaliacao < 1 || enviandoAvaliacao) && { opacity: 0.5 }]}
-                  onPress={handleAvaliar}
-                  disabled={notaAvaliacao < 1 || enviandoAvaliacao}
-                >
-                  {enviandoAvaliacao
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={styles.botaoAvaliarTexto}>Enviar avaliação</Text>
-                  }
-                </TouchableOpacity>
-              </>
-            )}
+            <Text style={styles.avaliacaoTitulo}>Sua avaliação</Text>
+            <Estrelas valor={chamado.avaliacao.nota} tamanho={22} />
+            {chamado.avaliacao.comentario ? (
+              <Text style={styles.avaliacaoComentarioTexto}>{chamado.avaliacao.comentario}</Text>
+            ) : null}
+            <Text style={styles.avaliacaoData}>Enviada {tempoRelativo(chamado.avaliacao.criadoEm)}</Text>
           </View>
-        )}
+        ) : podeAvaliar ? (
+          <TouchableOpacity
+            style={styles.avaliacaoPrompt}
+            onPress={() => setModalAvaliacaoVisivel(true)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.avaliacaoTitulo}>Como foi o atendimento?</Text>
+              <Text style={styles.avaliacaoSubtitulo}>Toque para avaliar o técnico</Text>
+            </View>
+            <Text style={styles.avaliacaoPromptSeta}>›</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Descrição */}
         <Text style={styles.secaoTitulo}>Descrição</Text>
@@ -277,6 +276,14 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      <AvaliacaoModal
+        visible={modalAvaliacaoVisivel}
+        tecnico={chamado.tecnico}
+        enviando={enviandoAvaliacao}
+        onFechar={() => setModalAvaliacaoVisivel(false)}
+        onEnviar={handleAvaliar}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -324,16 +331,15 @@ const styles = StyleSheet.create({
   botaoConviteTexto: { color: '#fff', fontSize: 14, fontFamily: fontInter.bold },
 
   avaliacaoCard: { ...comum.card, marginBottom: espaco.lg },
+  avaliacaoPrompt: {
+    ...comum.card, marginBottom: espaco.lg,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  avaliacaoPromptSeta: { color: cores.azulClaro, fontSize: 24, fontFamily: fontInter.bold },
   avaliacaoTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontInter.bold, marginBottom: 4 },
-  avaliacaoSubtitulo: { color: cores.textoSecundario, fontSize: 13, marginBottom: 14 },
-  avaliacaoInput: { ...comum.input, marginTop: 14 },
+  avaliacaoSubtitulo: { color: cores.textoSecundario, fontSize: 13 },
   avaliacaoComentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginTop: 12 },
   avaliacaoData: { color: cores.textoTerciario, fontSize: 11, marginTop: 10 },
-  botaoAvaliar: {
-    backgroundColor: cores.azul, borderRadius: raio.md,
-    paddingVertical: 14, alignItems: 'center', marginTop: 16,
-  },
-  botaoAvaliarTexto: { color: '#fff', fontSize: 15, fontFamily: fontInter.bold },
 
   secaoTitulo: {
     color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
