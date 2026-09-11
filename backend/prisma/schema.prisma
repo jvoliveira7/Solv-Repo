@@ -13,6 +13,7 @@ model Usuario {
   senha     String
   setor     String?
   avatar    String?  @db.Text
+  pushToken String?
   perfil    Perfil   @default(USUARIO)
   criadoEm DateTime @default(now())
 

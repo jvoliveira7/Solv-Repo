@@ -156,10 +156,41 @@ async function atualizarAvatar(req, res) {
   }
 }
 
+// Token do Expo Push do aparelho. Mandar null desliga as notificações
+// (é o que o switch em Ajustes faz quando o usuário desativa).
+async function atualizarPushToken(req, res) {
+  const { pushToken } = req.body;
+
+  if (pushToken && typeof pushToken !== 'string') {
+    return res.status(400).json({ erro: 'Token inválido' });
+  }
+
+  try {
+    // O mesmo aparelho pode ter sido usado por outra conta antes — solta o
+    // token de quem tinha, senão a notificação ia pro dono errado.
+    if (pushToken) {
+      await prisma.usuario.updateMany({
+        where: { pushToken, NOT: { id: req.usuario.id } },
+        data: { pushToken: null },
+      });
+    }
+
+    await prisma.usuario.update({
+      where: { id: req.usuario.id },
+      data: { pushToken: pushToken || null },
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Erro ao atualizar push token:', err);
+    return res.status(500).json({ erro: 'Erro ao atualizar token de notificação' });
+  }
+}
+
 function gerarToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 }
 
-module.exports = { registro, login, me, atualizarAvatar };
+module.exports = { registro, login, me, atualizarAvatar, atualizarPushToken };

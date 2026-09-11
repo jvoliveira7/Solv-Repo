@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { notificarChamadoUrgente } = require('../services/pushService');
 
 // POST /api/chamados
 async function criar(req, res) {
@@ -22,6 +23,12 @@ async function criar(req, res) {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
       },
     });
+
+    // Chamado novo nasce sempre sem técnico, então prioridade alta/crítica
+    // já significa "urgente e sem ninguém designado" — avisa a equipe.
+    if (chamado.prioridade === 'ALTA' || chamado.prioridade === 'CRITICA') {
+      notificarChamadoUrgente({ chamado }).catch((err) => console.error('Erro no push de chamado urgente:', err));
+    }
 
     return res.status(201).json(chamado);
   } catch (err) {

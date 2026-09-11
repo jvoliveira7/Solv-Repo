@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { notificarNovaMensagem } = require('../services/pushService');
 
 // GET /api/chamados/:id/chat — busca sessão ativa ou pendente do chamado
 async function buscarSessao(req, res) {
@@ -104,4 +105,110 @@ async function listarChats(req, res) {
   }
 }
 
-module.exports = { buscarSessao, listarMensagens, listarChats };
+// ── Ações disparadas pelos botões da notificação push ──────────────────
+// Espelham os handlers de socket `recusar_chat` e `mensagem`, porque quando
+// o usuário responde direto da notificação o app está fechado e não existe
+// socket conectado pra emitir. Os eventos são reemitidos via io pra que a
+// tela do outro lado atualize igual ao fluxo normal.
+// TODO (pós-banca): extrair a lógica compartilhada com chatHandler.js.
+
+// POST /api/chat/:sessaoId/recusar
+async function recusarSessao(req, res) {
+  const { sessaoId } = req.params;
+  const { id: usuarioId } = req.usuario;
+
+  try {
+    const sessao = await prisma.chatSessao.findUnique({ where: { id: sessaoId } });
+    if (!sessao) return res.status(404).json({ erro: 'Sessão não encontrada' });
+
+    // Só quem recebeu a solicitação pode recusar
+    const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.usuarioId;
+    if (destinatarioId !== usuarioId) return res.status(403).json({ erro: 'Acesso negado' });
+
+    if (sessao.status !== 'PENDENTE') {
+      return res.status(400).json({ erro: 'Sessão não está pendente' });
+    }
+
+    await prisma.chatSessao.update({
+      where: { id: sessaoId },
+      data: { status: 'ENCERRADA' },
+    });
+
+    const iniciadorId = sessao.iniciadoPor === 'USUARIO' ? sessao.usuarioId : sessao.tecnicoId;
+    req.app.get('io').to(`usuario:${iniciadorId}`).emit('chat_recusado', {
+      sessaoId,
+      chamadoId: sessao.chamadoId,
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Erro ao recusar chat:', err);
+    return res.status(500).json({ erro: 'Erro ao recusar chat' });
+  }
+}
+
+// POST /api/chat/:sessaoId/mensagens — usado pela resposta rápida da notificação
+async function enviarMensagem(req, res) {
+  const { sessaoId } = req.params;
+  const { texto } = req.body;
+  const { id: usuarioId } = req.usuario;
+
+  if (!texto?.trim()) return res.status(400).json({ erro: 'Texto é obrigatório' });
+
+  try {
+    const sessao = await prisma.chatSessao.findUnique({ where: { id: sessaoId } });
+    if (!sessao) return res.status(404).json({ erro: 'Sessão não encontrada' });
+
+    if (sessao.status !== 'ATIVA') return res.status(400).json({ erro: 'Chat não está ativo' });
+
+    const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
+    if (!temAcesso) return res.status(403).json({ erro: 'Acesso negado' });
+
+    const io = req.app.get('io');
+    const sala = io.sockets.adapter.rooms.get(`chat:${sessaoId}`);
+    const outroJaPresente = !!sala && [...sala].some((sid) => io.sockets.sockets.get(sid)?.usuario?.id !== usuarioId);
+
+    const mensagem = await prisma.mensagem.create({
+      data: {
+        texto: texto.trim(),
+        autorId: usuarioId,
+        sessaoId,
+        status: outroJaPresente ? 'ENTREGUE' : 'ENVIADA',
+      },
+      include: {
+        autor: { select: { id: true, nome: true, avatar: true, perfil: true } },
+        sessao: { select: { chamadoId: true } },
+      },
+    });
+
+    io.to(`chat:${sessaoId}`).emit('nova_mensagem', { ...mensagem, chamadoId: mensagem.sessao.chamadoId });
+
+    // Mesma lógica do handler de socket (chatHandler.js) — sem isso, quem
+    // responde direto pela notificação (app fechado) nunca avisa o outro
+    // lado se ele também não estiver com o app aberto.
+    if (!outroJaPresente) {
+      const destinatarioId = sessao.usuarioId === usuarioId ? sessao.tecnicoId : sessao.usuarioId;
+      const chamado = await prisma.chamado.findUnique({
+        where: { id: sessao.chamadoId },
+        select: { titulo: true },
+      });
+
+      notificarNovaMensagem({
+        destinatarioId,
+        autor: mensagem.autor,
+        texto: mensagem.texto,
+        sessaoId,
+        chamadoId: sessao.chamadoId,
+        chamadoTitulo: chamado?.titulo,
+        destinatarioEhTecnico: destinatarioId === sessao.tecnicoId,
+      }).catch((err) => console.error('Erro no push de nova mensagem:', err));
+    }
+
+    return res.status(201).json(mensagem);
+  } catch (err) {
+    console.error('Erro ao enviar mensagem:', err);
+    return res.status(500).json({ erro: 'Erro ao enviar mensagem' });
+  }
+}
+
+module.exports = { buscarSessao, listarMensagens, listarChats, recusarSessao, enviarMensagem };

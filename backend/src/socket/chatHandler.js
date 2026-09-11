@@ -1,7 +1,15 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
+const { notificarSolicitacaoChat, notificarNovaMensagem } = require('../services/pushService');
 
 module.exports = function configurarSocket(io) {
+  // Mesma checagem de presença já usada pelo indicador "● Online" do chat —
+  // serve pra só mandar push pra quem não está com o app conectado.
+  function estaConectado(usuarioId) {
+    const sala = io.sockets.adapter.rooms.get(`usuario:${usuarioId}`);
+    return !!sala && sala.size > 0;
+  }
+
   // Middleware de autenticação via token no handshake
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -93,6 +101,18 @@ module.exports = function configurarSocket(io) {
           chamadoTitulo: chamado.titulo,
           solicitante: chamado.solicitante,
         });
+
+        // Se o técnico está com o app aberto, o Alert in-app já dá conta —
+        // push só quando ele não tem socket ativo, pra não avisar duas vezes.
+        if (!estaConectado(chamado.tecnicoId)) {
+          notificarSolicitacaoChat({
+            tecnicoId: chamado.tecnicoId,
+            sessaoId: sessao.id,
+            chamadoId,
+            chamadoTitulo: chamado.titulo,
+            solicitante: chamado.solicitante,
+          }).catch((err) => console.error('Erro no push de solicitação de chat:', err));
+        }
 
         socket.emit('chat_solicitado', { sessaoId: sessao.id, chamadoId, status: sessao.status, iniciadoPor: sessao.iniciadoPor });
         console.log(`Chat solicitado: ${nome} → ${chamado.tecnico.nome}`);
@@ -296,6 +316,26 @@ module.exports = function configurarSocket(io) {
         });
 
         io.to(`chat:${sessaoId}`).emit('nova_mensagem', { ...mensagem, chamadoId: mensagem.sessao.chamadoId });
+
+        // Quem não está na sala não recebeu nada pelo socket — esse é o caso
+        // que o push existe pra cobrir (app fechado ou em outra tela).
+        if (!outroJaPresente) {
+          const destinatarioId = sessao.usuarioId === usuarioId ? sessao.tecnicoId : sessao.usuarioId;
+          const chamado = await prisma.chamado.findUnique({
+            where: { id: sessao.chamadoId },
+            select: { titulo: true },
+          });
+
+          notificarNovaMensagem({
+            destinatarioId,
+            autor: mensagem.autor,
+            texto: mensagem.texto,
+            sessaoId,
+            chamadoId: sessao.chamadoId,
+            chamadoTitulo: chamado?.titulo,
+            destinatarioEhTecnico: destinatarioId === sessao.tecnicoId,
+          }).catch((err) => console.error('Erro no push de nova mensagem:', err));
+        }
       } catch (err) {
         console.error('Erro em mensagem:', err);
         socket.emit('erro', { mensagem: 'Erro ao enviar mensagem' });
