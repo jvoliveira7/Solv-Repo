@@ -13,6 +13,7 @@ import {
 import { AuthProvider } from './src/context/AuthContext';
 import { ChatProvider } from './src/context/ChatContext';
 import { SincronizacaoProvider } from './src/context/SincronizacaoContext';
+import { NotificacaoProvider } from './src/context/NotificacaoContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { cores } from './src/theme';
 
@@ -37,8 +38,10 @@ export default function App() {
     <AuthProvider>
       <SincronizacaoProvider>
         <ChatProvider>
-          <StatusBar style="light" />
-          <AppNavigator />
+          <NotificacaoProvider>
+            <StatusBar style="light" />
+            <AppNavigator />
+          </NotificacaoProvider>
         </ChatProvider>
       </SincronizacaoProvider>
     </AuthProvider>

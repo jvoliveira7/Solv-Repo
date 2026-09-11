@@ -2,10 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useNotificacoes } from '../context/NotificacaoContext';
 import { cores, espaco, raio, comum, fontInter } from '../theme';
 
 export default function AjustesScreen() {
   const { logout } = useAuth();
+  const { ativas, alternarNotificacoes } = useNotificacoes();
 
   function confirmarSaida() {
     Alert.alert('Sair da conta?', 'Você vai precisar entrar de novo pra acessar o Solv.', [
@@ -24,9 +26,13 @@ export default function AjustesScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.linhaTitulo}>Notificações push</Text>
-            <Text style={styles.linhaDescricao}>Em breve — avisos de novas mensagens e atualizações de chamado direto no celular.</Text>
+            <Text style={styles.linhaDescricao}>Avisos de novas mensagens, pedidos de chat e chamados urgentes direto no celular.</Text>
           </View>
-          <Switch value={false} disabled trackColor={{ false: cores.cardBorda, true: cores.azul }} />
+          <Switch
+            value={ativas}
+            onValueChange={alternarNotificacoes}
+            trackColor={{ false: cores.cardBorda, true: cores.azul }}
+          />
         </View>
       </View>
 

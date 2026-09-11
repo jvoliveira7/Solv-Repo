@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Solv",
+    "slug": "solv",
+    "scheme": "solv",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jvoliveira.solv"
     },
     "android": {
+      "package": "com.jvoliveira.solv",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -27,7 +30,20 @@
     "plugins": [
       "expo-asset",
       "expo-status-bar",
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-dev-client",
+      [
+        "expo-notifications",
+        {
+          "color": "#2d6fff",
+          "defaultChannel": "chat"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "PREENCHER_COM_EAS_INIT"
+      }
+    }
   }
 }
