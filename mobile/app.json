@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.jvoliveira.solv",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -42,8 +43,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "PREENCHER_COM_EAS_INIT"
+        "projectId": "0871377b-c5b5-41b9-8473-d3aa4796a52e"
       }
-    }
+    },
+    "owner": "bianchihaki"
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "540444159394",
+    "project_id": "solv-d35a4",
+    "storage_bucket": "solv-d35a4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540444159394:android:2adaeb83c8fb6e976496fb",
+        "android_client_info": {
+          "package_name": "com.jvoliveira.solv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhiDWzm3zk7R04xdeSB39gO-_Xov3Vflg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

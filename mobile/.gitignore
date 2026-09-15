@@ -17,6 +17,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Firebase admin/service account key — essa sim é sensível, nunca commitar
+# (google-services.json NÃO entra aqui: só identifica o app + API key
+# restrita por pacote, o EAS Build precisa dele versionado pra empacotar)
+*-firebase-adminsdk-*.json
+
 # Metro
 .metro-health-check*
 
