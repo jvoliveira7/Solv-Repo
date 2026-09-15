@@ -37,6 +37,17 @@ async function descartarTokenInvalido(token) {
 
 // Envia pra uma lista de tokens. Nunca lança: push é efeito colateral, não
 // pode derrubar o fluxo que disparou (mandar mensagem, abrir chamado...).
+//
+// LIMITAÇÃO CONHECIDA (testada e confirmada em 2026-09-15): no Android, os
+// botões de ação (categoryId) só aparecem quando a mensagem é "data-only"
+// (sem title/body/sound no nível raiz, tudo dentro de `data`) — do jeito
+// que está agora, o Android trata como notification message padrão do
+// sistema e ignora o categoryId por completo, mesmo com a categoria
+// corretamente registrada no dispositivo. Confirmado por um mantenedor do
+// Expo: https://github.com/expo/expo/issues/31503#issuecomment-2451100154
+// Título/corpo personalizados e o deep link no toque funcionam normalmente
+// — só os botões inline (Aceitar/Recusar/Assumir/Responder) com app
+// fechado ficam pendentes de virar data-only + background task no mobile.
 async function enviarPush(tokens, { titulo, corpo, dados, categoria, canal }) {
   const validos = (tokens || []).filter(Boolean);
   if (validos.length === 0) return;

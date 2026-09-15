@@ -42,6 +42,18 @@ async function configurarCanaisAndroid() {
 
 // Botões que aparecem na própria notificação. `opensAppToForeground: false`
 // resolve em background, sem abrir o app — é o que dá o "interativo".
+//
+// LIMITAÇÃO CONHECIDA (testada e confirmada em 2026-09-15): esses botões só
+// aparecem de fato quando o push chega como mensagem "data-only" (sem
+// title/body/sound no nível raiz da mensagem — hoje pushService.js manda
+// esses campos no nível raiz, então o Android trata como "notification
+// message" padrão do sistema e ignora o categoryId por completo). Com app
+// fechado, além disso, precisaria de uma background task via
+// expo-task-manager (Notifications.registerTaskAsync) pra montar a
+// notificação manualmente na chegada. Ver discussão da equipe do Expo:
+// https://github.com/expo/expo/issues/31503#issuecomment-2451100154
+// Hoje o toque simples na notificação (deep link) funciona normalmente —
+// só os botões inline com app fechado ficam pendentes dessa mudança maior.
 async function registrarCategorias() {
   await Notifications.setNotificationCategoryAsync(CATEGORIA.SOLICITACAO_CHAT, [
     {
