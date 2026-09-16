@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { useAuth } from './AuthContext';
 import { conectarSocket, desconectarSocket } from '../services/socketService';
 import { navigate } from '../navigation/navigationRef';
@@ -88,7 +88,7 @@ export function ChatProvider({ children }) {
 
     let mounted = true;
 
-    (async () => {
+    async function conectarEregistrar() {
       const socket = await conectarSocket();
       if (!mounted) return;
       socketRef.current = socket;
@@ -154,10 +154,33 @@ export function ChatProvider({ children }) {
       socket.on('nova_mensagem', (mensagem) => {
         dispatch({ type: 'NOVA_MENSAGEM', chamadoId: mensagem.chamadoId, mensagem });
       });
-    })();
+    }
+
+    conectarEregistrar();
+
+    // Presença estilo WhatsApp: "online" fica atrelado ao app estar em
+    // primeiro plano, não só à conexão de socket sobreviver em background
+    // (o Android pode manter o JS rodando um tempo depois de minimizado).
+    // Minimizar/trocar de app desconecta na hora — o back-end já emite
+    // usuario_status:false no disconnect, e reconecta (re-registrando os
+    // mesmos listeners) assim que volta ao primeiro plano.
+    let emPrimeiroPlano = true;
+    const inscricaoAppState = AppState.addEventListener('change', (proximoEstado) => {
+      const vaiPraFundo = proximoEstado !== 'active';
+
+      if (vaiPraFundo && emPrimeiroPlano) {
+        emPrimeiroPlano = false;
+        desconectarSocket();
+        socketRef.current = null;
+      } else if (!vaiPraFundo && !emPrimeiroPlano) {
+        emPrimeiroPlano = true;
+        conectarEregistrar();
+      }
+    });
 
     return () => {
       mounted = false;
+      inscricaoAppState.remove();
       const socket = socketRef.current;
       if (socket) {
         ['solicitacao_chat', 'chat_solicitado', 'chat_aceito', 'chat_iniciado', 'chat_recusado', 'chat_encerrado', 'nova_mensagem'].forEach((e) => socket.off(e));

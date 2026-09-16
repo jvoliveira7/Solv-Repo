@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { conectarSocket } from '../services/socketService';
@@ -25,6 +25,16 @@ export default function ChatScreen({ route, navigation }) {
   const [respondendoA, setRespondendoA] = useState(null);
   const socketRef = useRef(null);
   const flatListRef = useRef(null);
+  const statusOpacity = useRef(new Animated.Value(1)).current;
+
+  // Fade curtinho toda vez que o status online/offline do contato muda,
+  // em vez de trocar a cor abruptamente.
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(statusOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(statusOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  }, [contatoOnline]);
 
   useEffect(() => {
     let mounted = true;
@@ -47,7 +57,14 @@ export default function ChatScreen({ route, navigation }) {
     }
 
     function aoReceberNovaMensagem(msg) {
-      if (mounted) setMensagens((prev) => [...prev, msg]);
+      if (!mounted) return;
+      setMensagens((prev) => [...prev, msg]);
+      // Presença só é recalculada em conectar/desconectar do socket — se o
+      // outro lado já estava conectado antes de eu abrir a tela, nenhum
+      // evento novo dispara. Mensagem chegando é prova de que ele está
+      // online agora, então confirma direto (nunca deixa o indicador preso
+      // num valor inicial errado enquanto a conversa está rolando).
+      if (msg.autor.id === contato?.id) setContatoOnline(true);
     }
 
     function aoReceberMensagensLidas({ lidasPor }) {
@@ -198,11 +215,13 @@ export default function ChatScreen({ route, navigation }) {
           <Text style={styles.headerNome}>{contato?.nome || 'Chat'}</Text>
           <View style={styles.statusLinha}>
             {!encerrado && (
-              <>
-                <View style={[styles.statusPonto, { backgroundColor: contatoOnline ? '#22c55e' : '#555' }]} />
-                <Text style={styles.statusTexto}>{contatoOnline ? 'Online' : 'Offline'}</Text>
+              <Animated.View style={[styles.statusLinhaInterna, { opacity: statusOpacity }]}>
+                <View style={[styles.statusPonto, { backgroundColor: contatoOnline ? '#22c55e' : '#5c6270' }]} />
+                <Text style={[styles.statusTexto, { color: contatoOnline ? '#22c55e' : '#5c6270' }]}>
+                  {contatoOnline ? 'Online' : 'Offline'}
+                </Text>
                 <Text style={styles.statusSeparador}> · </Text>
-              </>
+              </Animated.View>
             )}
             <Text style={styles.headerChamado} numberOfLines={1}>{chamadoTitulo}</Text>
           </View>
@@ -294,8 +313,9 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerNome: { color: '#fff', fontSize: 16, fontFamily: fontInter.bold },
   statusLinha: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  statusLinhaInterna: { flexDirection: 'row', alignItems: 'center' },
   statusPonto: { width: 7, height: 7, borderRadius: 4, marginRight: 5 },
-  statusTexto: { color: '#22c55e', fontSize: 12, fontFamily: fontInter.semibold },
+  statusTexto: { fontSize: 12, fontFamily: fontInter.semibold },
   statusSeparador: { color: '#555', fontSize: 12 },
   headerChamado: { color: '#777', fontSize: 12, flexShrink: 1 },
 
