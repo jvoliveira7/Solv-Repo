@@ -22,6 +22,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import AjustesScreen from '../screens/AjustesScreen';
 import PainelTecnicoScreen from '../screens/tech/PainelTecnicoScreen';
 import DetalheChamadoTecnicoScreen from '../screens/tech/DetalheChamadoTecnicoScreen';
+import TimeScreen from '../screens/tech/TimeScreen';
+import GerenciarTimesScreen from '../screens/tech/GerenciarTimesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -89,6 +91,7 @@ const ICONE_POR_ABA = {
   GuidedTab: 'compass',
   PerfilTab: 'person-circle',
   PainelTab: 'grid',
+  TimesTab: 'people',
 };
 
 const LABEL_POR_ABA = {
@@ -97,6 +100,7 @@ const LABEL_POR_ABA = {
   GuidedTab: 'Guiado',
   PerfilTab: 'Perfil',
   PainelTab: 'Painel',
+  TimesTab: 'Time',
 };
 
 function TabIcone({ nomeAba, focused }) {
@@ -164,6 +168,15 @@ function PainelStack() {
   );
 }
 
+function TimesStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="MeuTime" component={TimeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GerenciarTimes" component={GerenciarTimesScreen} options={{ title: 'Gerenciar times' }} />
+    </Stack.Navigator>
+  );
+}
+
 function ChatsStackTecnico() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
@@ -191,6 +204,7 @@ function TechTabs() {
     >
       <Tab.Screen name="PainelTab" component={PainelStack} options={{ tabBarLabel: 'Painel' }} />
       <Tab.Screen name="ChatsTab" component={ChatsStackTecnico} options={{ tabBarLabel: 'Chats' }} />
+      <Tab.Screen name="TimesTab" component={TimesStack} options={{ tabBarLabel: 'Time' }} />
       <Tab.Screen name="PerfilTab" component={ProfileScreen} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );

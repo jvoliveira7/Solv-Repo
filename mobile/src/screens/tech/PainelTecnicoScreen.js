@@ -58,9 +58,17 @@ export default function PainelTecnicoScreen({ navigation }) {
   const [atualizando, setAtualizando] = useState(false);
   const [filtro, setFiltro] = useState('ABERTO');
   const [assumindoId, setAssumindoId] = useState(null);
+  const [meuTime, setMeuTime] = useState(null);
 
   async function carregarTudo() {
     const chaveChamados = `painel_chamados_${filtro}`;
+
+    // Time do técnico — só pra destacar a fila por especialidade. Falhar
+    // aqui não pode atrapalhar a listagem de chamados em si.
+    api.get('/times/meu')
+      .then(({ data }) => setMeuTime(data.time))
+      .catch(() => setMeuTime(null));
+
     try {
       const [chamadosResp, contagensResp] = await Promise.all([
         api.get('/chamados', { params: { status: FILTRO_STATUS[filtro] } }),
@@ -177,9 +185,28 @@ export default function PainelTecnicoScreen({ navigation }) {
     );
   }
 
+  // Chamado sem técnico que bate com a especialidade do meu time ganha uma
+  // seção própria no topo. Sem time (ou categoria que nenhum time cobre),
+  // cai na fila geral como sempre foi.
+  const semTecnico = chamados.filter((c) => !c.tecnicoId);
+  const categoriasDoTime = meuTime?.categorias || [];
+  const doMeuTime = categoriasDoTime.length > 0
+    ? semTecnico.filter((c) => categoriasDoTime.includes(c.categoria))
+    : [];
+  const idsDoMeuTime = new Set(doMeuTime.map((c) => c.id));
+
   const secoes = filtro === 'ABERTO'
     ? [
-        { chave: 'sem-tecnico', titulo: 'Sem técnico', dados: chamados.filter((c) => !c.tecnicoId) },
+        {
+          chave: 'do-meu-time',
+          titulo: meuTime ? `Especialidade do ${meuTime.nome}` : 'Do seu time',
+          dados: doMeuTime,
+        },
+        {
+          chave: 'sem-tecnico',
+          titulo: doMeuTime.length > 0 ? 'Outros sem técnico' : 'Sem técnico',
+          dados: semTecnico.filter((c) => !idsDoMeuTime.has(c.id)),
+        },
         {
           chave: 'meus-ativos',
           titulo: 'Meus chamados ativos',
