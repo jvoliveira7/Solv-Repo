@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { conectarSocket } from '../services/socketService';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
@@ -11,6 +12,7 @@ import { fontInter } from '../theme';
 const PERFIL_ABREV = { TECNICO: 'TI', ADMIN: 'TI', USUARIO: '' };
 
 export default function ChatScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { sessaoId, chamadoTitulo, contato, isTecnico } = route.params;
   const { usuario } = useAuth();
   const [mensagens, setMensagens] = useState([]);
@@ -27,6 +29,51 @@ export default function ChatScreen({ route, navigation }) {
   useEffect(() => {
     let mounted = true;
 
+    // Nomeadas (em vez de inline no socket.on) porque o socket é
+    // compartilhado com o ChatContext global — socket.off('evento') sem
+    // passar a função remove TODOS os listeners daquele evento no socket,
+    // inclusive os do Context. Guardando a referência exata, o cleanup
+    // desta tela só remove os handlers que ela mesma registrou.
+    function aoReceberHistorico({ mensagens: hist, somenteLeitura: leitura, encerradoPorResolucao: porResolucao, contatoOnline: online, iniciadoPor: quemIniciou }) {
+      if (!mounted) return;
+      setMensagens(hist);
+      setConectando(false);
+      setContatoOnline(!!online);
+      setIniciadoPor(quemIniciou);
+      if (leitura) {
+        setEncerrado(true);
+        setEncerradoPorResolucao(!!porResolucao);
+      }
+    }
+
+    function aoReceberNovaMensagem(msg) {
+      if (mounted) setMensagens((prev) => [...prev, msg]);
+    }
+
+    function aoReceberMensagensLidas({ lidasPor }) {
+      if (!mounted) return;
+      // O outro lado leu minhas mensagens — atualiza meus ticks pra azul
+      setMensagens((prev) => prev.map((m) =>
+        m.autor.id !== lidasPor ? { ...m, status: 'LIDA' } : m
+      ));
+    }
+
+    function aoEncerrarChat({ encerradoPorResolucao: porResolucao } = {}) {
+      if (mounted) {
+        setEncerrado(true);
+        setEncerradoPorResolucao(!!porResolucao);
+        if (!porResolucao) Alert.alert('Chat encerrado', 'O técnico encerrou esta conversa.');
+      }
+    }
+
+    function aoMudarStatusUsuario({ usuarioId, online }) {
+      if (mounted && contato?.id === usuarioId) setContatoOnline(online);
+    }
+
+    function aoReceberErro({ mensagem }) {
+      if (mounted) Alert.alert('Erro', mensagem);
+    }
+
     async function iniciarChat() {
       try {
         const socket = await conectarSocket();
@@ -34,45 +81,12 @@ export default function ChatScreen({ route, navigation }) {
 
         socket.emit('entrar_chat', { sessaoId });
 
-        socket.on('historico_chat', ({ mensagens: hist, somenteLeitura: leitura, encerradoPorResolucao: porResolucao, contatoOnline: online, iniciadoPor: quemIniciou }) => {
-          if (!mounted) return;
-          setMensagens(hist);
-          setConectando(false);
-          setContatoOnline(!!online);
-          setIniciadoPor(quemIniciou);
-          if (leitura) {
-            setEncerrado(true);
-            setEncerradoPorResolucao(!!porResolucao);
-          }
-        });
-
-        socket.on('nova_mensagem', (msg) => {
-          if (mounted) setMensagens((prev) => [...prev, msg]);
-        });
-
-        socket.on('mensagens_lidas', ({ lidasPor }) => {
-          if (!mounted) return;
-          // O outro lado leu minhas mensagens — atualiza meus ticks pra azul
-          setMensagens((prev) => prev.map((m) =>
-            m.autor.id !== lidasPor ? { ...m, status: 'LIDA' } : m
-          ));
-        });
-
-        socket.on('chat_encerrado', ({ encerradoPorResolucao: porResolucao } = {}) => {
-          if (mounted) {
-            setEncerrado(true);
-            setEncerradoPorResolucao(!!porResolucao);
-            if (!porResolucao) Alert.alert('Chat encerrado', 'O técnico encerrou esta conversa.');
-          }
-        });
-
-        socket.on('usuario_status', ({ usuarioId, online }) => {
-          if (mounted && contato?.id === usuarioId) setContatoOnline(online);
-        });
-
-        socket.on('erro', ({ mensagem }) => {
-          if (mounted) Alert.alert('Erro', mensagem);
-        });
+        socket.on('historico_chat', aoReceberHistorico);
+        socket.on('nova_mensagem', aoReceberNovaMensagem);
+        socket.on('mensagens_lidas', aoReceberMensagensLidas);
+        socket.on('chat_encerrado', aoEncerrarChat);
+        socket.on('usuario_status', aoMudarStatusUsuario);
+        socket.on('erro', aoReceberErro);
       } catch {
         if (mounted) Alert.alert('Erro', 'Não foi possível conectar ao chat.');
       }
@@ -84,12 +98,12 @@ export default function ChatScreen({ route, navigation }) {
       mounted = false;
       const s = socketRef.current;
       if (s) {
-        s.off('historico_chat');
-        s.off('nova_mensagem');
-        s.off('mensagens_lidas');
-        s.off('chat_encerrado');
-        s.off('usuario_status');
-        s.off('erro');
+        s.off('historico_chat', aoReceberHistorico);
+        s.off('nova_mensagem', aoReceberNovaMensagem);
+        s.off('mensagens_lidas', aoReceberMensagensLidas);
+        s.off('chat_encerrado', aoEncerrarChat);
+        s.off('usuario_status', aoMudarStatusUsuario);
+        s.off('erro', aoReceberErro);
       }
     };
   }, [sessaoId]);
@@ -172,8 +186,8 @@ export default function ChatScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.voltarBotao} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.voltarSeta}>←</Text>
         </TouchableOpacity>
@@ -225,7 +239,7 @@ export default function ChatScreen({ route, navigation }) {
       />
 
       {encerrado ? (
-        <View style={styles.encerradoBanner}>
+        <View style={[styles.encerradoBanner, { paddingBottom: insets.bottom + 16 }]}>
           <Text style={styles.encerradoTexto}>
             {encerradoPorResolucao
               ? '📄 Histórico do chamado resolvido — somente leitura'
@@ -245,7 +259,7 @@ export default function ChatScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           )}
-          <View style={styles.inputArea}>
+          <View style={[styles.inputArea, { paddingBottom: insets.bottom + 12 }]}>
             <TextInput
               style={styles.input}
               placeholder="Digite uma mensagem..."
