@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useSincronizacao } from '../../context/SincronizacaoContext';
@@ -17,6 +18,7 @@ import OfflineBanner from '../../components/OfflineBanner';
 const CHAVE_CACHE = 'home_chamados';
 
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { usuario, logout } = useAuth();
   const { pendentes } = useSincronizacao();
   const [chamados, setChamados] = useState([]);
@@ -101,7 +103,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.cabecalho}>
+      <View style={[styles.cabecalho, { paddingTop: insets.top + 16 }]}>
         <View style={styles.cabecalhoTopo}>
           <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
 

@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../services/api';
 import { cores, espaco, raio, fontInter } from '../theme';
 import { tempoRelativo } from '../utils/tempoRelativo';
@@ -12,6 +13,7 @@ import Avatar from '../components/Avatar';
 const STATUS_LABEL = { PENDENTE: 'Pendente', ATIVA: 'Ativo', ENCERRADA: 'Encerrado' };
 
 export default function ChatsListScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const isTecnico = route?.params?.isTecnico ?? false;
   const [chats, setChats] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -92,7 +94,7 @@ export default function ChatsListScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
         <Text style={styles.headerTitulo}>Chats</Text>
       </View>

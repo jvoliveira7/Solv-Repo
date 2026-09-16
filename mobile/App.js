@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   useFonts,
@@ -35,15 +36,17 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <SincronizacaoProvider>
-        <ChatProvider>
-          <NotificacaoProvider>
-            <StatusBar style="light" />
-            <AppNavigator />
-          </NotificacaoProvider>
-        </ChatProvider>
-      </SincronizacaoProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SincronizacaoProvider>
+          <ChatProvider>
+            <NotificacaoProvider>
+              <StatusBar style="light" />
+              <AppNavigator />
+            </NotificacaoProvider>
+          </ChatProvider>
+        </SincronizacaoProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

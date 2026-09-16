@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -49,6 +50,7 @@ function nivelIdade(dataCriacao) {
 }
 
 export default function PainelTecnicoScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { usuario } = useAuth();
   const [chamados, setChamados] = useState([]);
   const [contagens, setContagens] = useState({ ABERTO: 0, EM_ATENDIMENTO: 0, RESOLVIDO: 0 });
@@ -192,7 +194,7 @@ export default function PainelTecnicoScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.cabecalho}>
+      <View style={[styles.cabecalho, { paddingTop: insets.top + 16 }]}>
         <View style={styles.cabecalhoTopo}>
           <Text style={styles.logo}>Solv<Text style={{ color: cores.azul }}>.</Text></Text>
 

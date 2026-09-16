@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../context/AuthContext';
 import { navigationRef } from './navigationRef';
@@ -31,19 +32,24 @@ const stackScreenOptions = {
   headerTitleStyle: { fontFamily: fontInter.bold },
 };
 
-const tabBarStyleComum = {
-  backgroundColor: cores.fundo,
-  borderTopColor: cores.divisor,
-  borderTopWidth: 1,
-  height: 72,
-  paddingTop: 12,
-  paddingBottom: 14,
-  elevation: 8,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: -4 },
-  shadowOpacity: 0.25,
-  shadowRadius: 8,
-};
+// Altura/padding da barra de abas precisam somar o inset de baixo de verdade
+// do aparelho (gestos ou botões do Android, home indicator do iOS) — sem
+// isso a barra nativa do sistema invade/sobrepõe a barra do app.
+function tabBarStyleComum(insetsBottom) {
+  return {
+    backgroundColor: cores.fundo,
+    borderTopColor: cores.divisor,
+    borderTopWidth: 1,
+    height: 58 + insetsBottom,
+    paddingTop: 12,
+    paddingBottom: Math.max(insetsBottom, 14),
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  };
+}
 
 function HomeStack() {
   return (
@@ -127,11 +133,12 @@ function TabIcone({ nomeAba, focused }) {
 }
 
 function UserTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: tabBarStyleComum,
+        tabBarStyle: tabBarStyleComum(insets.bottom),
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
         tabBarShowLabel: false,
@@ -170,11 +177,12 @@ function ChatsStackTecnico() {
 }
 
 function TechTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: tabBarStyleComum,
+        tabBarStyle: tabBarStyleComum(insets.bottom),
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
         tabBarShowLabel: false,
