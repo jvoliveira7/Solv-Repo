@@ -17,13 +17,48 @@ model Usuario {
   perfil    Perfil   @default(USUARIO)
   criadoEm DateTime @default(now())
 
+  // Um técnico pertence a no máximo um time por vez. `adminDoTime` só faz
+  // sentido junto com `timeId` — marca quem administra aquele time
+  // específico, sem precisar ser ADMIN global do sistema.
+  timeId      String?
+  time        Time?   @relation(fields: [timeId], references: [id])
+  adminDoTime Boolean @default(false)
+
   chamadosAbertos   Chamado[]    @relation("Solicitante")
   chamadosAtendidos Chamado[]    @relation("Tecnico")
   comentarios       Comentario[]
   mensagens         Mensagem[]
+  mensagensTime     MensagemTime[]
   chatsComoUsuario  ChatSessao[] @relation("ChatUsuario")
   chatsComoTecnico  ChatSessao[] @relation("ChatTecnico")
   avaliacoes        Avaliacao[]
+}
+
+// Agrupa técnicos por especialidade. As categorias definem quais chamados
+// "pertencem" ao time — usado pra destacar a fila do painel.
+model Time {
+  id         String      @id @default(uuid())
+  nome       String
+  categorias Categoria[]
+  criadoEm   DateTime    @default(now())
+
+  membros   Usuario[]
+  mensagens MensagemTime[]
+}
+
+// Chat interno do time (técnicos + admin do time conversando entre si).
+// Diferente de Mensagem, que é do chat 1:1 com o solicitante: aqui o
+// próprio time já é o canal, não precisa de sessão que nasce/encerra.
+model MensagemTime {
+  id       String   @id @default(uuid())
+  texto    String
+  criadoEm DateTime @default(now())
+
+  autorId String
+  autor   Usuario @relation(fields: [autorId], references: [id])
+
+  timeId String
+  time   Time   @relation(fields: [timeId], references: [id])
 }
 
 enum Perfil {

@@ -30,6 +30,19 @@ module.exports = function configurarSocket(io) {
     // Sala pessoal para notificações direcionadas — funciona em qualquer tela
     socket.join(`usuario:${usuarioId}`);
 
+    // Sala do time (chat interno da equipe técnica), se ele fizer parte de um
+    (async () => {
+      try {
+        const eu = await prisma.usuario.findUnique({
+          where: { id: usuarioId },
+          select: { timeId: true },
+        });
+        if (eu?.timeId) socket.join(`time:${eu.timeId}`);
+      } catch (err) {
+        console.error('Erro ao entrar na sala do time:', err);
+      }
+    })();
+
     // Presença — usada pelo indicador "● Online" no chat
     io.emit('usuario_status', { usuarioId, online: true });
 
@@ -339,6 +352,35 @@ module.exports = function configurarSocket(io) {
       } catch (err) {
         console.error('Erro em mensagem:', err);
         socket.emit('erro', { mensagem: 'Erro ao enviar mensagem' });
+      }
+    });
+
+    // ── MENSAGEM no chat interno do time ────────────────────────────
+    // Mesmo formato do handler de 'mensagem' acima, mas o canal é o time
+    // inteiro (não uma sessão que nasce/encerra) e não tem status de
+    // entrega/leitura — é conversa de equipe, não atendimento.
+    socket.on('mensagem_time', async ({ timeId, texto }) => {
+      if (!texto?.trim()) return;
+
+      try {
+        const eu = await prisma.usuario.findUnique({
+          where: { id: usuarioId },
+          select: { timeId: true },
+        });
+
+        if (eu?.timeId !== timeId) {
+          return socket.emit('erro', { mensagem: 'Você não faz parte deste time' });
+        }
+
+        const mensagem = await prisma.mensagemTime.create({
+          data: { texto: texto.trim(), autorId: usuarioId, timeId },
+          include: { autor: { select: { id: true, nome: true, avatar: true, perfil: true } } },
+        });
+
+        io.to(`time:${timeId}`).emit('nova_mensagem_time', mensagem);
+      } catch (err) {
+        console.error('Erro em mensagem_time:', err);
+        socket.emit('erro', { mensagem: 'Erro ao enviar mensagem para o time' });
       }
     });
 
