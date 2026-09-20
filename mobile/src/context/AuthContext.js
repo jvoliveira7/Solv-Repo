@@ -63,6 +63,13 @@ export function AuthProvider({ children }) {
     return data.usuario;
   }
 
+  async function registrarTecnico({ nome, email, senha, setor, codigoAcesso }) {
+    const { data } = await api.post('/auth/registro-tecnico', { nome, email, senha, setor, codigoAcesso });
+    await saveAuth(data.token, data.usuario);
+    dispatch({ type: 'LOGIN', usuario: data.usuario, token: data.token });
+    return data.usuario;
+  }
+
   async function logout() {
     await clearAuth();
     dispatch({ type: 'LOGOUT' });
@@ -76,7 +83,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, registrar, logout, atualizarAvatar }}>
+    <AuthContext.Provider value={{ ...state, login, registrar, registrarTecnico, logout, atualizarAvatar }}>
       {children}
     </AuthContext.Provider>
   );

@@ -143,6 +143,12 @@ export default function LoginScreen({ navigation }) {
             Não tem conta? <Text style={styles.linkCriarContaDestaque}>Criar conta</Text>
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkTecnico} onPress={() => navigation.navigate('RegisterTecnico')}>
+          <Text style={styles.linkCriarContaTexto}>
+            É técnico? <Text style={styles.linkCriarContaDestaque}>Cadastre-se aqui</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -216,6 +222,7 @@ const styles = StyleSheet.create({
   botaoDesabilitado: { opacity: 0.6 },
   botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
   linkCriarConta: { marginTop: espaco.xl, alignItems: 'center' },
+  linkTecnico: { marginTop: espaco.sm, alignItems: 'center' },
   linkCriarContaTexto: { color: cores.textoTerciario, fontSize: 13 },
   linkCriarContaDestaque: { color: cores.azulClaro, fontFamily: fontInter.bold },
 });

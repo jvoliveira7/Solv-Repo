@@ -48,6 +48,63 @@ async function registro(req, res) {
   }
 }
 
+//POST /api/auth/registro-tecnico
+// Tela separada da de usuário comum — exige um código de acesso (definido
+// por fora, em TECNICO_ACCESS_CODE) além dos dados normais. É o único jeito
+// de nascer TECNICO direto no cadastro; sem o código, vira erro 403 (não
+// cai silenciosamente pra USUARIO, senão a pessoa nem entenderia por quê).
+async function registroTecnico(req, res) {
+  const { nome, email, senha, setor, codigoAcesso } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
+  }
+
+  if (!process.env.TECNICO_ACCESS_CODE) {
+    console.error('TECNICO_ACCESS_CODE não configurado no .env');
+    return res.status(500).json({ erro: 'Cadastro de técnico indisponível no momento' });
+  }
+
+  if (codigoAcesso !== process.env.TECNICO_ACCESS_CODE) {
+    return res.status(403).json({ erro: 'Código de acesso técnico inválido' });
+  }
+
+  try {
+    const emailJaExiste = await prisma.usuario.findUnique({ where: { email } });
+    if (emailJaExiste) {
+      return res.status(409).json({ erro: 'Este e-mail já está em uso' });
+    }
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    const usuario = await prisma.usuario.create({
+      data: {
+        nome,
+        email,
+        senha: senhaHash,
+        setor: setor || null,
+        perfil: 'TECNICO',
+      },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        setor: true,
+        avatar: true,
+        perfil: true,
+        criadoEm: true,
+      },
+    });
+
+    const token = gerarToken(usuario);
+
+    return res.status(201).json({ usuario, token });
+  } catch (err) {
+    console.error('Erro no registro de técnico:', err);
+    return res.status(500).json({ erro: 'Erro ao criar usuário' });
+  }
+}
+
 //POST /api/auth/login
 async function login(req, res) {
   const { email, senha } = req.body;
@@ -193,4 +250,4 @@ function gerarToken(payload) {
   });
 }
 
-module.exports = { registro, login, me, atualizarAvatar, atualizarPushToken };
+module.exports = { registro, registroTecnico, login, me, atualizarAvatar, atualizarPushToken };

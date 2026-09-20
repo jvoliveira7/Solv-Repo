@@ -12,6 +12,7 @@ import { cores, fontInter } from '../theme';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import RegisterTecnicoScreen from '../screens/RegisterTecnicoScreen';
 import HomeScreen from '../screens/user/HomeScreen';
 import NovoChamadoScreen from '../screens/user/NovoChamadoScreen';
 import DetalheChamadoScreen from '../screens/user/DetalheChamadoScreen';
@@ -215,6 +216,7 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="RegisterTecnico" component={RegisterTecnicoScreen} />
     </Stack.Navigator>
   );
 }
