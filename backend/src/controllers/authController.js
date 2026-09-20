@@ -125,6 +125,14 @@ async function login(req, res) {
       return res.status(401).json({ erro: 'Credenciais inválidas' });
     }
 
+    if (usuario.suspenso) {
+      return res.status(403).json({
+        erro: usuario.motivoSuspensao
+          ? `Conta suspensa: ${usuario.motivoSuspensao}`
+          : 'Conta suspensa por um administrador',
+      });
+    }
+
     const payload = {
       id: usuario.id,
       nome: usuario.nome,
@@ -213,8 +221,6 @@ async function atualizarAvatar(req, res) {
   }
 }
 
-// Token do Expo Push do aparelho. Mandar null desliga as notificações
-// (é o que o switch em Ajustes faz quando o usuário desativa).
 async function atualizarPushToken(req, res) {
   const { pushToken } = req.body;
 

@@ -11,15 +11,29 @@ module.exports = function configurarSocket(io) {
   }
 
   // Middleware de autenticação via token no handshake
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Token não fornecido'));
+
+    let payload;
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
-      socket.usuario = payload;
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return next(new Error('Token inválido'));
+    }
+
+    try {
+      const atual = await prisma.usuario.findUnique({
+        where: { id: payload.id },
+        select: { perfil: true, suspenso: true },
+      });
+      if (!atual) return next(new Error('Usuário não encontrado'));
+      if (atual.suspenso) return next(new Error('Conta suspensa'));
+
+      socket.usuario = { ...payload, perfil: atual.perfil };
       next();
     } catch {
-      next(new Error('Token inválido'));
+      next(new Error('Erro ao validar usuário'));
     }
   });
 

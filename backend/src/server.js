@@ -8,6 +8,8 @@ const authRoutes = require('./routes/auth');
 const chamadoRoutes = require('./routes/chamados');
 const chatRoutes = require('./routes/chat');
 const timeRoutes = require('./routes/times');
+const adminRoutes = require('./routes/admin');
+const denunciaRoutes = require('./routes/denuncias');
 const configurarSocket = require('./socket/chatHandler');
 
 const app = express();
@@ -33,6 +35,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/chamados', chamadoRoutes);
 app.use('/api/times', timeRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/denuncias', denunciaRoutes);
 app.use('/api', chatRoutes);
 
 //Handler de erros global

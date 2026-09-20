@@ -24,6 +24,13 @@ model Usuario {
   time        Time?   @relation(fields: [timeId], references: [id])
   adminDoTime Boolean @default(false)
 
+  // Restrição aplicada por um ADMIN: conta suspensa não loga nem usa a API.
+  suspenso        Boolean @default(false)
+  motivoSuspensao String?
+
+  denunciasFeitas     Denuncia[] @relation("Denunciante")
+  denunciasRecebidas  Denuncia[] @relation("Denunciado")
+
   chamadosAbertos   Chamado[]    @relation("Solicitante")
   chamadosAtendidos Chamado[]    @relation("Tecnico")
   comentarios       Comentario[]
@@ -87,6 +94,42 @@ model Chamado {
   comentarios Comentario[]
   chat        ChatSessao?
   avaliacao   Avaliacao?
+  denuncias   Denuncia[]
+}
+
+enum MotivoDenuncia {
+  COMPORTAMENTO
+  RESPONSABILIDADE
+  OUTRO
+}
+
+enum StatusDenuncia {
+  PENDENTE
+  PROCEDENTE
+  IMPROCEDENTE
+}
+
+// Usuário denuncia o técnico que atendeu um chamado seu. Uma denúncia por
+// chamado por denunciante (evita spam); o ADMIN julga e responde.
+model Denuncia {
+  id          String         @id @default(uuid())
+  motivo      MotivoDenuncia
+  descricao   String
+  status      StatusDenuncia @default(PENDENTE)
+  criadoEm    DateTime       @default(now())
+  resolvidoEm DateTime?
+  respostaAdmin String?
+
+  chamadoId String
+  chamado   Chamado @relation(fields: [chamadoId], references: [id])
+
+  denuncianteId String
+  denunciante   Usuario @relation("Denunciante", fields: [denuncianteId], references: [id])
+
+  denunciadoId String
+  denunciado   Usuario @relation("Denunciado", fields: [denunciadoId], references: [id])
+
+  @@unique([chamadoId, denuncianteId])
 }
 
 enum Categoria {
