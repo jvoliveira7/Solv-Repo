@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, Modal, ScrollView,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
@@ -19,6 +19,7 @@ const CATEGORIAS = [
 ];
 
 export default function GerenciarTimesScreen() {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [times, setTimes] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -90,8 +91,15 @@ export default function GerenciarTimesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.lista}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.cardNome}>{item.nome}</Text>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('MeuTime', { timeId: item.id })}
+          >
+            <View style={styles.cardTopo}>
+              <Text style={styles.cardNome}>{item.nome}</Text>
+              <Ionicons name="chevron-forward" size={18} color={cores.textoTerciario} />
+            </View>
             <View style={styles.chipsLinha}>
               {item.categorias.map((c) => {
                 const meta = CATEGORIAS.find((x) => x.valor === c);
@@ -105,7 +113,7 @@ export default function GerenciarTimesScreen() {
             <Text style={styles.cardMembros}>
               {item._count?.membros ?? 0} técnico(s)
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <Text style={styles.vazio}>Nenhum time criado ainda.</Text>
@@ -192,6 +200,7 @@ const styles = StyleSheet.create({
   vazio: { color: cores.textoTerciario, fontSize: 14, textAlign: 'center', marginTop: 24 },
 
   card: { ...comum.card, marginBottom: 12 },
+  cardTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardNome: { color: cores.texto, fontSize: 16, fontFamily: fontInter.bold },
   chipsLinha: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   chip: { backgroundColor: cores.azulSuave, borderRadius: raio.sm, paddingHorizontal: 8, paddingVertical: 4 },

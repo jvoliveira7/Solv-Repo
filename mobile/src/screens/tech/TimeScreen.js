@@ -17,9 +17,13 @@ const CATEGORIA_ICONE = {
   ACESSO: '🔑', IMPRESSORA: '🖨️', OUTRO: '⋯',
 };
 
-export default function TimeScreen({ navigation }) {
+export default function TimeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { usuario } = useAuth();
+  // Sem param: "meu time" (aba Time do técnico). Com param: ADMIN olhando um
+  // time específico a partir de GerenciarTimesScreen — mesma tela, fonte
+  // de dados diferente.
+  const timeId = route?.params?.timeId;
   const [time, setTime] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
@@ -31,19 +35,26 @@ export default function TimeScreen({ navigation }) {
 
   const carregarTime = useCallback(async () => {
     try {
-      const { data } = await api.get('/times/meu');
-      setTime(data.time);
+      let timeCarregado;
+      if (timeId) {
+        const { data } = await api.get(`/times/${timeId}`);
+        timeCarregado = data;
+      } else {
+        const { data } = await api.get('/times/meu');
+        timeCarregado = data.time;
+      }
+      setTime(timeCarregado);
 
-      if (data.time) {
-        const { data: msgs } = await api.get(`/times/${data.time.id}/mensagens`);
+      if (timeCarregado) {
+        const { data: msgs } = await api.get(`/times/${timeCarregado.id}/mensagens`);
         setMensagens(msgs);
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar seu time.');
+      Alert.alert('Erro', 'Não foi possível carregar o time.');
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [timeId]);
 
   useFocusEffect(useCallback(() => { carregarTime(); }, [carregarTime]));
 
@@ -125,18 +136,28 @@ export default function TimeScreen({ navigation }) {
     );
   }
 
-  // Técnico ainda sem time — estado vazio explicativo
+  // Sem time — estado vazio explicativo (texto muda se é "meu time" vazio
+  // ou se o ADMIN entrou num time que, por algum motivo, não existe mais)
   if (!time) {
     return (
       <View style={[styles.centro, { paddingHorizontal: espaco.xl }]}>
         <Ionicons name="people-outline" size={48} color={cores.textoTerciario} />
-        <Text style={styles.vazioTitulo}>Você ainda não está em um time</Text>
-        <Text style={styles.vazioTexto}>
-          Times agrupam técnicos por especialidade. Um administrador precisa te adicionar a um.
+        <Text style={styles.vazioTitulo}>
+          {timeId ? 'Time não encontrado' : 'Você ainda não está em um time'}
         </Text>
+        {!timeId && (
+          <Text style={styles.vazioTexto}>
+            Times agrupam técnicos por especialidade. Um administrador precisa te adicionar a um.
+          </Text>
+        )}
         {usuario?.perfil === 'ADMIN' && (
-          <TouchableOpacity style={styles.botaoGerenciar} onPress={() => navigation.navigate('GerenciarTimes')}>
-            <Text style={styles.botaoGerenciarTexto}>Gerenciar times</Text>
+          <TouchableOpacity
+            style={styles.botaoGerenciar}
+            onPress={() => (timeId ? navigation.goBack() : navigation.navigate('GerenciarTimes'))}
+          >
+            <Text style={styles.botaoGerenciarTexto}>
+              {timeId ? 'Voltar' : 'Gerenciar times'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -163,11 +184,16 @@ export default function TimeScreen({ navigation }) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.cabecalho, { paddingTop: insets.top + 16 }]}>
         <View style={styles.cabecalhoTopo}>
+          {navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.botaoIcone} hitSlop={8}>
+              <Ionicons name="chevron-back" size={20} color={cores.textoSecundario} />
+            </TouchableOpacity>
+          )}
           <View style={{ flex: 1 }}>
             <Text style={styles.timeNome}>{time.nome}</Text>
             <Text style={styles.timeSub}>{time.membros.length} técnico(s) no time</Text>
           </View>
-          {usuario?.perfil === 'ADMIN' && (
+          {usuario?.perfil === 'ADMIN' && !timeId && (
             <TouchableOpacity onPress={() => navigation.navigate('GerenciarTimes')} style={styles.botaoIcone} hitSlop={8}>
               <Ionicons name="settings-outline" size={18} color={cores.textoSecundario} />
             </TouchableOpacity>
