@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { Alert } from 'react-native';
 import { saveAuth, getToken, getUsuario, clearAuth } from '../storage/authStorage';
 import api from '../services/api';
 
@@ -48,7 +49,24 @@ export function AuthProvider({ children }) {
     }
     restaurarSessao();
   }, []);
-    
+
+  // Conta suspensa por um admin: qualquer chamada da API volta 403 com
+  // `suspensa` — desloga na hora em vez de deixar o app aberto e quebrado.
+  useEffect(() => {
+    const id = api.interceptors.response.use(
+      (resposta) => resposta,
+      async (erro) => {
+        if (erro.response?.status === 403 && erro.response?.data?.suspensa) {
+          await clearAuth();
+          dispatch({ type: 'LOGOUT' });
+          Alert.alert('Conta suspensa', erro.response.data.erro);
+        }
+        return Promise.reject(erro);
+      }
+    );
+    return () => api.interceptors.response.eject(id);
+  }, []);
+
   async function login(email, senha) {
     const { data } = await api.post('/auth/login', { email, senha });
     await saveAuth(data.token, data.usuario);

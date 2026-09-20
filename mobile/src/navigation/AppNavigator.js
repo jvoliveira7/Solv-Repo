@@ -25,6 +25,9 @@ import PainelTecnicoScreen from '../screens/tech/PainelTecnicoScreen';
 import DetalheChamadoTecnicoScreen from '../screens/tech/DetalheChamadoTecnicoScreen';
 import TimeScreen from '../screens/tech/TimeScreen';
 import GerenciarTimesScreen from '../screens/tech/GerenciarTimesScreen';
+import AdminScreen from '../screens/admin/AdminScreen';
+import GerenciarUsuariosScreen from '../screens/admin/GerenciarUsuariosScreen';
+import DenunciasScreen from '../screens/admin/DenunciasScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -93,6 +96,7 @@ const ICONE_POR_ABA = {
   PerfilTab: 'person-circle',
   PainelTab: 'grid',
   TimesTab: 'people',
+  AdminTab: 'shield-checkmark',
 };
 
 const LABEL_POR_ABA = {
@@ -102,6 +106,7 @@ const LABEL_POR_ABA = {
   PerfilTab: 'Perfil',
   PainelTab: 'Painel',
   TimesTab: 'Time',
+  AdminTab: 'Admin',
 };
 
 function TabIcone({ nomeAba, focused }) {
@@ -178,6 +183,16 @@ function TimesStack() {
   );
 }
 
+function AdminStack() {
+  return (
+    <Stack.Navigator screenOptions={stackScreenOptions}>
+      <Stack.Screen name="AdminHome" component={AdminScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="GerenciarUsuarios" component={GerenciarUsuariosScreen} options={{ title: 'Usuários e funções' }} />
+      <Stack.Screen name="Denuncias" component={DenunciasScreen} options={{ title: 'Denúncias' }} />
+    </Stack.Navigator>
+  );
+}
+
 function ChatsStackTecnico() {
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
@@ -192,6 +207,7 @@ function ChatsStackTecnico() {
 
 function TechTabs() {
   const insets = useSafeAreaInsets();
+  const { usuario } = useAuth();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -206,6 +222,9 @@ function TechTabs() {
       <Tab.Screen name="PainelTab" component={PainelStack} options={{ tabBarLabel: 'Painel' }} />
       <Tab.Screen name="ChatsTab" component={ChatsStackTecnico} options={{ tabBarLabel: 'Chats' }} />
       <Tab.Screen name="TimesTab" component={TimesStack} options={{ tabBarLabel: 'Time' }} />
+      {usuario?.perfil === 'ADMIN' && (
+        <Tab.Screen name="AdminTab" component={AdminStack} options={{ tabBarLabel: 'Admin' }} />
+      )}
       <Tab.Screen name="PerfilTab" component={ProfileScreen} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
   );

@@ -11,6 +11,13 @@ import { tempoRelativo } from '../../utils/tempoRelativo';
 import Avatar from '../../components/Avatar';
 import Estrelas from '../../components/Estrelas';
 import AvaliacaoModal from '../../components/AvaliacaoModal';
+import DenunciaModal, { MOTIVOS_DENUNCIA } from '../../components/DenunciaModal';
+
+const DENUNCIA_STATUS = {
+  PENDENTE: { label: 'Em análise', cor: cores.aviso },
+  PROCEDENTE: { label: 'Procedente', cor: cores.sucesso },
+  IMPROCEDENTE: { label: 'Improcedente', cor: cores.textoTerciario },
+};
 
 export default function DetalheChamadoScreen({ route, navigation }) {
   const { id } = route.params;
@@ -20,13 +27,40 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   const [enviando, setEnviando] = useState(false);
   const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
   const [modalAvaliacaoVisivel, setModalAvaliacaoVisivel] = useState(false);
+  const [denuncia, setDenuncia] = useState(null);
+  const [modalDenunciaVisivel, setModalDenunciaVisivel] = useState(false);
+  const [enviandoDenuncia, setEnviandoDenuncia] = useState(false);
 
   const { sessao: sessaoChat, solicitar } = useChatSessao(id);
+
+  async function carregarDenuncia() {
+    try {
+      const { data } = await api.get(`/denuncias/chamado/${id}`);
+      setDenuncia(data.denuncia);
+    } catch {
+      // sem a denúncia só some o status; o resto da tela segue normal
+    }
+  }
+
+  async function handleDenunciar(motivo, descricao) {
+    setEnviandoDenuncia(true);
+    try {
+      await api.post('/denuncias', { chamadoId: id, motivo, descricao });
+      setModalDenunciaVisivel(false);
+      await carregarDenuncia();
+      Alert.alert('Denúncia enviada', 'Um administrador vai analisar o que você relatou.');
+    } catch (err) {
+      Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível enviar a denúncia.');
+    } finally {
+      setEnviandoDenuncia(false);
+    }
+  }
 
   async function carregarChamado() {
     try {
       const { data } = await api.get(`/chamados/${id}`);
       setChamado(data);
+      if (data.tecnicoId) carregarDenuncia();
       const podeAvaliarAgora = (data.status === 'RESOLVIDO' || data.status === 'FECHADO') && !!data.tecnicoId;
       if (podeAvaliarAgora && !data.avaliacao) {
         // só sugere automaticamente uma vez por chamado — fica marcado no
@@ -227,6 +261,32 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           </TouchableOpacity>
         ) : null}
 
+        {/* Denúncia do atendimento */}
+        {chamado.tecnico && (
+          denuncia ? (
+            <View style={styles.denunciaCard}>
+              <View style={styles.denunciaTopo}>
+                <Text style={styles.denunciaTitulo}>Denúncia enviada</Text>
+                <View style={[styles.denunciaBadge, { backgroundColor: DENUNCIA_STATUS[denuncia.status].cor + '22' }]}>
+                  <Text style={[styles.denunciaBadgeTexto, { color: DENUNCIA_STATUS[denuncia.status].cor }]}>
+                    {DENUNCIA_STATUS[denuncia.status].label}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.denunciaMotivo}>
+                {MOTIVOS_DENUNCIA.find((m) => m.valor === denuncia.motivo)?.label} · {tempoRelativo(denuncia.criadoEm)}
+              </Text>
+              {denuncia.respostaAdmin ? (
+                <Text style={styles.denunciaResposta}>Resposta do administrador: {denuncia.respostaAdmin}</Text>
+              ) : null}
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.denunciarLink} onPress={() => setModalDenunciaVisivel(true)}>
+              <Text style={styles.denunciarLinkTexto}>⚠️ Denunciar atendimento</Text>
+            </TouchableOpacity>
+          )
+        )}
+
         {/* Descrição */}
         <Text style={styles.secaoTitulo}>Descrição</Text>
         <View style={comum.card}>
@@ -284,6 +344,14 @@ export default function DetalheChamadoScreen({ route, navigation }) {
         onFechar={() => setModalAvaliacaoVisivel(false)}
         onEnviar={handleAvaliar}
       />
+
+      <DenunciaModal
+        visible={modalDenunciaVisivel}
+        tecnico={chamado.tecnico}
+        enviando={enviandoDenuncia}
+        onFechar={() => setModalDenunciaVisivel(false)}
+        onEnviar={handleDenunciar}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -340,6 +408,16 @@ const styles = StyleSheet.create({
   avaliacaoSubtitulo: { color: cores.textoSecundario, fontSize: 13 },
   avaliacaoComentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginTop: 12 },
   avaliacaoData: { color: cores.textoTerciario, fontSize: 11, marginTop: 10 },
+
+  denunciarLink: { alignSelf: 'center', paddingVertical: 8, marginBottom: espaco.lg },
+  denunciarLinkTexto: { color: cores.textoTerciario, fontSize: 13, fontFamily: fontInter.semibold },
+  denunciaCard: { ...comum.card, marginBottom: espaco.lg },
+  denunciaTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  denunciaTitulo: { color: cores.texto, fontSize: 15, fontFamily: fontInter.bold },
+  denunciaBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: raio.sm },
+  denunciaBadgeTexto: { fontSize: 11, fontFamily: fontInter.bold },
+  denunciaMotivo: { color: cores.textoSecundario, fontSize: 13, marginTop: 6 },
+  denunciaResposta: { color: cores.textoSecundario, fontSize: 13, lineHeight: 19, marginTop: 10 },
 
   secaoTitulo: {
     color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
