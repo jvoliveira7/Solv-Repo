@@ -1,8 +1,15 @@
 import { Platform, Alert } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import api from './api';
+
+// No Expo Go (Android), só o "require" de expo-notifications já registra um
+// listener nativo de push token — e isso derruba o app com runtime error
+// desde o SDK 53 (não é algo que dê pra pegar com try/catch numa função
+// nossa, porque acontece no carregamento do módulo). Import condicional
+// evita isso: no Expo Go, `Notifications` fica null e tudo aqui vira no-op.
+export const emExpoGo = Constants.appOwnership === 'expo';
+const Notifications = emExpoGo ? null : require('expo-notifications');
 
 // Precisam bater com os IDs usados em backend/src/services/pushService.js
 export const CATEGORIA = {
@@ -98,6 +105,8 @@ function obterProjectId() {
 // Pede permissão no mesmo padrão do app (checa granted, Alert em primeira
 // pessoa, return silencioso) e devolve o token do Expo — ou null se não deu.
 export async function obterTokenPush({ avisarSeNegado = true } = {}) {
+  if (emExpoGo) return null; // push remoto não existe no Expo Go desde o SDK 53
+
   if (!Device.isDevice) {
     console.warn('Push só funciona em aparelho físico.');
     return null;

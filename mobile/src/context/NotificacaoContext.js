@@ -1,27 +1,33 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import api from '../services/api';
 import { getSocket } from '../services/socketService';
 import { navigate } from '../navigation/navigationRef';
-import { obterTokenPush, salvarTokenNoBackend, ACAO } from '../services/notificacaoService';
+import { obterTokenPush, salvarTokenNoBackend, ACAO, emExpoGo } from '../services/notificacaoService';
 
 // ── Notificações push (P6) ─────────────────────────────────────────────
 // O backend já decide QUANDO mandar (só notifica quem não está com o app
 // conectado / com a conversa aberta), então aqui é só: registrar o token,
 // reagir ao toque e executar os botões de ação.
+//
+// No Expo Go, expo-notifications não pode nem ser importado (ver o require
+// condicional em notificacaoService.js) — então tudo aqui usa esse mesmo
+// `Notifications` (null no Expo Go) e vira no-op nesse caso.
+const Notifications = emExpoGo ? null : require('expo-notifications');
 
 const CHAVE_PREFERENCIA = '@solv:notificacoes_ativas';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (!emExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const NotificacaoContext = createContext(null);
 
@@ -136,7 +142,7 @@ export function NotificacaoProvider({ children }) {
   }
 
   useEffect(() => {
-    if (!usuario?.id) return;
+    if (!usuario?.id || emExpoGo) return;
 
     const inscricao = Notifications.addNotificationResponseReceivedListener(tratarResposta);
 
