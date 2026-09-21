@@ -39,7 +39,6 @@ model Usuario {
 
   chamadosAbertos   Chamado[]    @relation("Solicitante")
   chamadosAtendidos Chamado[]    @relation("Tecnico")
-  comentarios       Comentario[]
   mensagens         Mensagem[]
   mensagensTime     MensagemTime[]
   chatsComoUsuario  ChatSessao[] @relation("ChatUsuario")
@@ -97,7 +96,6 @@ model Chamado {
   tecnicoId String?
   tecnico   Usuario? @relation("Tecnico", fields: [tecnicoId], references: [id])
 
-  comentarios Comentario[]
   chat        ChatSessao?
   avaliacao   Avaliacao?
   denuncias   Denuncia[]
@@ -171,18 +169,6 @@ enum StatusChat {
 enum IniciadoPor {
   USUARIO
   TECNICO
-}
-
-model Comentario {
-  id        String   @id @default(uuid())
-  texto     String
-  criadoEm DateTime @default(now())
-
-  autorId   String
-  autor     Usuario  @relation(fields: [autorId], references: [id])
-
-  chamadoId String
-  chamado   Chamado  @relation(fields: [chamadoId], references: [id])
 }
 
 model ChatSessao {

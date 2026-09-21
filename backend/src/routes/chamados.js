@@ -6,7 +6,6 @@ const {
   estatisticasTecnico,
   buscarPorId,
   atualizarStatus,
-  adicionarComentario,
   avaliar,
 } = require('../controllers/chamadoController');
 const { autenticar, apenasTecnico } = require('../middlewares/auth');
@@ -22,7 +21,6 @@ router.get('/contagem', contarPorGrupo);                        // contagem por 
 router.get('/estatisticas-tecnico', apenasTecnico, estatisticasTecnico); // idem
 router.get('/:id', buscarPorId);                                // com guard interno
 router.patch('/:id/status', apenasTecnico, atualizarStatus);   // só técnico/admin
-router.post('/:id/comentarios', adicionarComentario);           // qualquer autenticado (guard interno)
 router.post('/:id/avaliacao', avaliar);                         // usuário solicitante (guard interno)
 
 module.exports = router;

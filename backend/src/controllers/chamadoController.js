@@ -86,7 +86,6 @@ async function listar(req, res) {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
         tecnico: { select: { id: true, nome: true, avatar: true } },
         chat: { select: { status: true } },
-        _count: { select: { comentarios: true } },
       },
     });
 
@@ -108,10 +107,6 @@ async function buscarPorId(req, res) {
       include: {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
         tecnico: { select: { id: true, nome: true, avatar: true } },
-        comentarios: {
-          orderBy: { criadoEm: 'asc' },
-          include: { autor: { select: { id: true, nome: true, avatar: true, perfil: true } } },
-        },
         avaliacao: true,
       },
     });
@@ -135,7 +130,7 @@ async function buscarPorId(req, res) {
 // PATCH /api/chamados/:id/status  (técnico/admin)
 async function atualizarStatus(req, res) {
   const { id } = req.params;
-  const { status, anotacao } = req.body;
+  const { status } = req.body;
 
   const statusValidos = ['ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO', 'RESOLVIDO', 'FECHADO'];
   if (!status || !statusValidos.includes(status)) {
@@ -162,17 +157,6 @@ async function atualizarStatus(req, res) {
       },
     });
 
-    // Registra anotação interna como comentário, se fornecida
-    if (anotacao) {
-      await prisma.comentario.create({
-        data: {
-          texto: anotacao,
-          autorId: req.usuario.id,
-          chamadoId: id,
-        },
-      });
-    }
-
     // Ao resolver/fechar, o chat (se ativo) vira histórico read-only — nunca é apagado
     if (status === 'RESOLVIDO' || status === 'FECHADO') {
       const sessaoAtiva = await prisma.chatSessao.findFirst({
@@ -198,42 +182,6 @@ async function atualizarStatus(req, res) {
   } catch (err) {
     console.error('Erro ao atualizar status:', err);
     return res.status(500).json({ erro: 'Erro ao atualizar status' });
-  }
-}
-
-// POST /api/chamados/:id/comentarios
-async function adicionarComentario(req, res) {
-  const { id } = req.params;
-  const { texto } = req.body;
-
-  if (!texto) {
-    return res.status(400).json({ erro: 'Texto do comentário é obrigatório' });
-  }
-
-  try {
-    const chamado = await prisma.chamado.findUnique({ where: { id } });
-    if (!chamado) return res.status(404).json({ erro: 'Chamado não encontrado' });
-
-    // Usuário só comenta no próprio chamado
-    if (req.usuario.perfil === 'USUARIO' && chamado.solicitanteId !== req.usuario.id) {
-      return res.status(403).json({ erro: 'Acesso negado' });
-    }
-
-    const comentario = await prisma.comentario.create({
-      data: {
-        texto,
-        autorId: req.usuario.id,
-        chamadoId: id,
-      },
-      include: {
-        autor: { select: { id: true, nome: true, avatar: true, perfil: true } },
-      },
-    });
-
-    return res.status(201).json(comentario);
-  } catch (err) {
-    console.error('Erro ao adicionar comentário:', err);
-    return res.status(500).json({ erro: 'Erro ao adicionar comentário' });
   }
 }
 
@@ -314,4 +262,4 @@ async function avaliar(req, res) {
   }
 }
 
-module.exports = { criar, listar, contarPorGrupo, estatisticasTecnico, buscarPorId, atualizarStatus, adicionarComentario, avaliar };
+module.exports = { criar, listar, contarPorGrupo, estatisticasTecnico, buscarPorId, atualizarStatus, avaliar };
