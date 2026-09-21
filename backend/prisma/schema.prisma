@@ -7,12 +7,33 @@ datasource db {
 }
 
 // Convenções de tipos deste schema:
-// - Conjuntos de valores fixos (perfil, status, prioridade...) são VARCHAR(n)
-//   com CHECK no banco (chk_<tabela>_<coluna>), não ENUM nativo: evoluir um
-//   conjunto é só ajustar o CHECK, sem ALTER TYPE. O Prisma não modela CHECK,
-//   então eles vivem nas migrations.
+// - Conjuntos de valores fixos que podem evoluir (perfil, categoria, status
+//   do chamado, denúncia...) são VARCHAR(n) com CHECK no banco
+//   (chk_<tabela>_<coluna>): evoluir um conjunto é só ajustar o CHECK, sem
+//   ALTER TYPE. O Prisma não modela CHECK, então eles vivem nas migrations.
+// - ENUM nativo só em 3 conjuntos pequenos e estáveis: Prioridade (a ordem do
+//   enum ordena a fila), StatusMensagem e IniciadoPor.
 // - Datas são TIMESTAMPTZ (o banco sabe o fuso; o Prisma sempre usa UTC).
 // - Texto curto tem limite (VARCHAR); texto livre (mensagens, descrições) é TEXT.
+
+// Ordem importa: a fila ordena por prioridade usando a ordem declarada aqui.
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum StatusMensagem {
+  ENVIADA
+  ENTREGUE
+  LIDA
+}
+
+enum IniciadoPor {
+  USUARIO
+  TECNICO
+}
 
 model Usuario {
   id        String   @id @default(uuid())
@@ -97,7 +118,7 @@ model Chamado {
   titulo       String   @db.VarChar(150)
   descricao    String
   categoria    String   @db.VarChar(12) // HARDWARE | SOFTWARE | REDE | ACESSO | IMPRESSORA | OUTRO
-  prioridade   String   @default("MEDIA") @db.VarChar(8) // BAIXA | MEDIA | ALTA | CRITICA
+  prioridade   Prioridade @default(MEDIA)
   status       String   @default("ABERTO") @db.VarChar(16) // ABERTO | EM_ATENDIMENTO | AGUARDANDO | RESOLVIDO | FECHADO
   localizacao  String?  @db.VarChar(150)
   criadoEm     DateTime @default(now()) @db.Timestamptz(3)
@@ -142,7 +163,7 @@ model ChatSessao {
   status    String   @default("PENDENTE") @db.VarChar(10) // PENDENTE | ATIVA | ENCERRADA
   criadoEm  DateTime @default(now()) @db.Timestamptz(3)
 
-  iniciadoPor            String  @default("USUARIO") @db.VarChar(10) // USUARIO | TECNICO
+  iniciadoPor            IniciadoPor @default(USUARIO)
   encerradoPorResolucao  Boolean @default(false)
 
   chamadoId String   @unique
@@ -161,7 +182,7 @@ model Mensagem {
   id        String   @id @default(uuid())
   texto     String
   criadoEm  DateTime @default(now()) @db.Timestamptz(3)
-  status    String   @default("ENVIADA") @db.VarChar(10) // ENVIADA | ENTREGUE | LIDA
+  status    StatusMensagem @default(ENVIADA)
 
   autorId  String
   autor    Usuario    @relation(fields: [autorId], references: [id])

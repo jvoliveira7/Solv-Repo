@@ -1,14 +1,10 @@
 const prisma = require('../config/prisma');
 const { notificarChamadoUrgente } = require('../services/pushService');
 
-// Os conjuntos de valores são garantidos também pelo banco (CHECK), mas
-// validar aqui devolve um 400 claro em vez de um erro 500 de constraint.
+// Os conjuntos de valores são garantidos também pelo banco (CHECK / ENUM), mas
+// validar aqui devolve um 400 claro em vez de um erro 500 do banco.
 const CATEGORIAS = ['HARDWARE', 'SOFTWARE', 'REDE', 'ACESSO', 'IMPRESSORA', 'OUTRO'];
 const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA', 'CRITICA'];
-
-// Peso pra ordenar a fila: a coluna é texto, então "desc" ordenaria em
-// ordem alfabética (CRITICA, MEDIA, BAIXA, ALTA) — errado.
-const PESO_PRIORIDADE = { BAIXA: 1, MEDIA: 2, ALTA: 3, CRITICA: 4 };
 
 // POST /api/chamados
 async function criar(req, res) {
@@ -93,24 +89,27 @@ async function listar(req, res) {
 
   if (status) where.status = status.includes(',') ? { in: status.split(',') } : status;
   if (categoria) where.categoria = categoria;
-  if (prioridade) where.prioridade = prioridade;
+  if (prioridade) {
+    if (!PRIORIDADES.includes(prioridade)) {
+      return res.status(400).json({ erro: `Prioridade inválida. Use: ${PRIORIDADES.join(', ')}` });
+    }
+    where.prioridade = prioridade;
+  }
 
   try {
     const chamados = await prisma.chamado.findMany({
       where,
-      // Dentro da mesma prioridade, o mais antigo primeiro — evita que um
-      // chamado urgente antigo fique enterrado embaixo de um banal recém-aberto.
-      // A ordem por prioridade é aplicada logo abaixo (a coluna é texto).
-      orderBy: { criadoEm: 'asc' },
+      // Fila por urgência: prioridade mais alta primeiro (o ENUM é declarado
+      // BAIXA→CRITICA, então 'desc' inverte pra CRITICA→BAIXA) e, dentro da
+      // mesma prioridade, o mais antigo primeiro — evita que um chamado
+      // urgente antigo fique enterrado embaixo de um banal recém-aberto.
+      orderBy: [{ prioridade: 'desc' }, { criadoEm: 'asc' }],
       include: {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
         tecnico: { select: { id: true, nome: true, avatar: true } },
         chat: { select: { status: true } },
       },
     });
-
-    // sort estável: mantém criadoEm asc dentro de cada prioridade
-    chamados.sort((a, b) => PESO_PRIORIDADE[b.prioridade] - PESO_PRIORIDADE[a.prioridade]);
 
     return res.json(chamados);
   } catch (err) {
