@@ -6,16 +6,24 @@ datasource db {
   provider = "postgresql"
 }
 
+// Convenções de tipos deste schema:
+// - Conjuntos de valores fixos (perfil, status, prioridade...) são VARCHAR(n)
+//   com CHECK no banco (chk_<tabela>_<coluna>), não ENUM nativo: evoluir um
+//   conjunto é só ajustar o CHECK, sem ALTER TYPE. O Prisma não modela CHECK,
+//   então eles vivem nas migrations.
+// - Datas são TIMESTAMPTZ (o banco sabe o fuso; o Prisma sempre usa UTC).
+// - Texto curto tem limite (VARCHAR); texto livre (mensagens, descrições) é TEXT.
+
 model Usuario {
   id        String   @id @default(uuid())
-  nome      String
-  email     String   @unique
-  senha     String
-  setor     String?
+  nome      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(255)
+  senha     String   @db.VarChar(60) // hash bcrypt tem sempre 60 caracteres
+  setor     String?  @db.VarChar(80)
   avatar    String?  @db.Text
-  pushToken String?
-  perfil    Perfil   @default(USUARIO)
-  criadoEm DateTime @default(now())
+  pushToken String?  @db.VarChar(255)
+  perfil    String   @default("USUARIO") @db.VarChar(10) // USUARIO | TECNICO | ADMIN
+  criadoEm  DateTime @default(now()) @db.Timestamptz(3)
 
   // Um técnico pertence a no máximo um time por vez. `adminDoTime` só faz
   // sentido junto com `timeId` — marca quem administra aquele time
@@ -26,12 +34,12 @@ model Usuario {
 
   // Restrição aplicada por um ADMIN: conta suspensa não loga nem usa a API.
   suspenso        Boolean @default(false)
-  motivoSuspensao String?
+  motivoSuspensao String? @db.VarChar(200)
 
   // Recuperação de senha: só guarda o hash do código de 6 dígitos, com
   // validade curta (RN19) e limite de tentativas contra força bruta.
-  resetCodigoHash String?
-  resetExpiraEm   DateTime?
+  resetCodigoHash String?   @db.VarChar(60)
+  resetExpiraEm   DateTime? @db.Timestamptz(3)
   resetTentativas Int       @default(0)
 
   denunciasFeitas     Denuncia[] @relation("Denunciante")
@@ -49,10 +57,10 @@ model Usuario {
 // Agrupa técnicos por especialidade. As categorias definem quais chamados
 // "pertencem" ao time — usado pra destacar a fila do painel.
 model Time {
-  id         String      @id @default(uuid())
-  nome       String
-  categorias Categoria[]
-  criadoEm   DateTime    @default(now())
+  id         String   @id @default(uuid())
+  nome       String   @db.VarChar(80)
+  categorias String[]
+  criadoEm   DateTime @default(now()) @db.Timestamptz(3)
 
   membros   Usuario[]
   mensagens MensagemTime[]
@@ -64,7 +72,7 @@ model Time {
 model MensagemTime {
   id       String   @id @default(uuid())
   texto    String
-  criadoEm DateTime @default(now())
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
 
   autorId String
   autor   Usuario @relation(fields: [autorId], references: [id])
@@ -73,22 +81,16 @@ model MensagemTime {
   time   Time   @relation(fields: [timeId], references: [id])
 }
 
-enum Perfil {
-  USUARIO
-  TECNICO
-  ADMIN
-}
-
 model Chamado {
-  id           String     @id @default(uuid())
-  titulo       String
+  id           String   @id @default(uuid())
+  titulo       String   @db.VarChar(150)
   descricao    String
-  categoria    Categoria
-  prioridade   Prioridade @default(MEDIA)
-  status       Status     @default(ABERTO)
-  localizacao  String?
-  criadoEm    DateTime   @default(now())
-  atualizadoEm DateTime  @updatedAt
+  categoria    String   @db.VarChar(12) // HARDWARE | SOFTWARE | REDE | ACESSO | IMPRESSORA | OUTRO
+  prioridade   String   @default("MEDIA") @db.VarChar(8) // BAIXA | MEDIA | ALTA | CRITICA
+  status       String   @default("ABERTO") @db.VarChar(16) // ABERTO | EM_ATENDIMENTO | AGUARDANDO | RESOLVIDO | FECHADO
+  localizacao  String?  @db.VarChar(150)
+  criadoEm     DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
 
   solicitanteId String
   solicitante   Usuario  @relation("Solicitante", fields: [solicitanteId], references: [id])
@@ -101,27 +103,15 @@ model Chamado {
   denuncias   Denuncia[]
 }
 
-enum MotivoDenuncia {
-  COMPORTAMENTO
-  RESPONSABILIDADE
-  OUTRO
-}
-
-enum StatusDenuncia {
-  PENDENTE
-  PROCEDENTE
-  IMPROCEDENTE
-}
-
 // Usuário denuncia o técnico que atendeu um chamado seu. Uma denúncia por
 // chamado por denunciante (evita spam); o ADMIN julga e responde.
 model Denuncia {
-  id          String         @id @default(uuid())
-  motivo      MotivoDenuncia
-  descricao   String
-  status      StatusDenuncia @default(PENDENTE)
-  criadoEm    DateTime       @default(now())
-  resolvidoEm DateTime?
+  id            String    @id @default(uuid())
+  motivo        String    @db.VarChar(20) // COMPORTAMENTO | RESPONSABILIDADE | OUTRO
+  descricao     String
+  status        String    @default("PENDENTE") @db.VarChar(14) // PENDENTE | PROCEDENTE | IMPROCEDENTE
+  criadoEm      DateTime  @default(now()) @db.Timestamptz(3)
+  resolvidoEm   DateTime? @db.Timestamptz(3)
   respostaAdmin String?
 
   chamadoId String
@@ -136,48 +126,13 @@ model Denuncia {
   @@unique([chamadoId, denuncianteId])
 }
 
-enum Categoria {
-  HARDWARE
-  SOFTWARE
-  REDE
-  ACESSO
-  IMPRESSORA
-  OUTRO
-}
-
-enum Prioridade {
-  BAIXA
-  MEDIA
-  ALTA
-  CRITICA
-}
-
-enum Status {
-  ABERTO
-  EM_ATENDIMENTO
-  AGUARDANDO
-  RESOLVIDO
-  FECHADO
-}
-
-enum StatusChat {
-  PENDENTE
-  ATIVA
-  ENCERRADA
-}
-
-enum IniciadoPor {
-  USUARIO
-  TECNICO
-}
-
 model ChatSessao {
-  id        String     @id @default(uuid())
-  status    StatusChat @default(PENDENTE)
-  criadoEm DateTime   @default(now())
+  id        String   @id @default(uuid())
+  status    String   @default("PENDENTE") @db.VarChar(10) // PENDENTE | ATIVA | ENCERRADA
+  criadoEm  DateTime @default(now()) @db.Timestamptz(3)
 
-  iniciadoPor            IniciadoPor @default(USUARIO)
-  encerradoPorResolucao  Boolean     @default(false)
+  iniciadoPor            String  @default("USUARIO") @db.VarChar(10) // USUARIO | TECNICO
+  encerradoPorResolucao  Boolean @default(false)
 
   chamadoId String   @unique
   chamado   Chamado  @relation(fields: [chamadoId], references: [id])
@@ -191,17 +146,11 @@ model ChatSessao {
   mensagens Mensagem[]
 }
 
-enum StatusMensagem {
-  ENVIADA
-  ENTREGUE
-  LIDA
-}
-
 model Mensagem {
   id        String   @id @default(uuid())
   texto     String
-  criadoEm DateTime @default(now())
-  status    StatusMensagem @default(ENVIADA)
+  criadoEm  DateTime @default(now()) @db.Timestamptz(3)
+  status    String   @default("ENVIADA") @db.VarChar(10) // ENVIADA | ENTREGUE | LIDA
 
   autorId  String
   autor    Usuario    @relation(fields: [autorId], references: [id])
@@ -216,9 +165,9 @@ model Mensagem {
 
 model Avaliacao {
   id         String   @id @default(uuid())
-  nota       Int
+  nota       Int      @db.SmallInt // 1 a 5 (CHECK chk_avaliacao_nota)
   comentario String?
-  criadoEm  DateTime @default(now())
+  criadoEm   DateTime @default(now()) @db.Timestamptz(3)
 
   chamadoId String  @unique
   chamado   Chamado @relation(fields: [chamadoId], references: [id])

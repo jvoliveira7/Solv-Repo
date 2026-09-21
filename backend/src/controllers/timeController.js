@@ -29,6 +29,7 @@ async function criar(req, res) {
   const { nome, categorias, adminId } = req.body;
 
   if (!nome?.trim()) return res.status(400).json({ erro: 'Nome do time é obrigatório' });
+  if (nome.trim().length > 80) return res.status(400).json({ erro: 'O nome do time pode ter no máximo 80 caracteres' });
 
   const erroCategoria = categoriasInvalidas(categorias);
   if (erroCategoria) return res.status(400).json({ erro: erroCategoria });
@@ -138,7 +139,12 @@ async function atualizar(req, res) {
     }
 
     const dados = {};
-    if (nome?.trim()) dados.nome = nome.trim();
+    if (nome?.trim()) {
+      if (nome.trim().length > 80) {
+        return res.status(400).json({ erro: 'O nome do time pode ter no máximo 80 caracteres' });
+      }
+      dados.nome = nome.trim();
+    }
     if (categorias !== undefined) {
       const erroCategoria = categoriasInvalidas(categorias);
       if (erroCategoria) return res.status(400).json({ erro: erroCategoria });

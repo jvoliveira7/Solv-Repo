@@ -4,6 +4,14 @@ const crypto = require('crypto');
 const prisma = require('../config/prisma');
 const { enviarCodigoRedefinicao } = require('../services/emailService');
 
+// Limites das colunas (VARCHAR) — validar aqui evita um erro 500 do banco.
+function erroDeTamanhoNoCadastro({ nome, email, setor }) {
+  if (nome && nome.length > 100) return 'O nome pode ter no máximo 100 caracteres';
+  if (email && email.length > 255) return 'O e-mail pode ter no máximo 255 caracteres';
+  if (setor && setor.length > 80) return 'O setor pode ter no máximo 80 caracteres';
+  return null;
+}
+
 //POST /api/auth/registro
 async function registro(req, res) {
   const { nome, email, senha, setor } = req.body;
@@ -11,6 +19,9 @@ async function registro(req, res) {
   if (!nome || !email || !senha) {
     return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
   }
+
+  const erroTamanho = erroDeTamanhoNoCadastro({ nome, email, setor });
+  if (erroTamanho) return res.status(400).json({ erro: erroTamanho });
 
   try {
     const emailJaExiste = await prisma.usuario.findUnique({ where: { email } });
@@ -70,6 +81,9 @@ async function registroTecnico(req, res) {
   if (codigoAcesso !== process.env.TECNICO_ACCESS_CODE) {
     return res.status(403).json({ erro: 'Código de acesso técnico inválido' });
   }
+
+  const erroTamanho = erroDeTamanhoNoCadastro({ nome, email, setor });
+  if (erroTamanho) return res.status(400).json({ erro: erroTamanho });
 
   try {
     const emailJaExiste = await prisma.usuario.findUnique({ where: { email } });

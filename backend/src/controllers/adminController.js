@@ -241,7 +241,7 @@ async function alterarSuspensao(req, res) {
     const alvo = await prisma.usuario.findUnique({ where: { id } });
     if (!alvo) return res.status(404).json({ erro: 'Usuário não encontrado' });
 
-    const atualizado = await aplicarSuspensao(req.app.get('io'), id, suspenso, motivo?.trim());
+    const atualizado = await aplicarSuspensao(req.app.get('io'), id, suspenso, motivo?.trim().slice(0, 200));
     return res.json(atualizado);
   } catch (err) {
     console.error('Erro ao alterar suspensão:', err);
@@ -308,7 +308,7 @@ async function julgarDenuncia(req, res) {
         req.app.get('io'),
         denuncia.denunciadoId,
         true,
-        respostaAdmin?.trim() || 'Denúncia procedente'
+        (respostaAdmin?.trim() || 'Denúncia procedente').slice(0, 200)
       );
     }
 
