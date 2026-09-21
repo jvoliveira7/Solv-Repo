@@ -4,6 +4,17 @@ const CATEGORIAS_VALIDAS = ['HARDWARE', 'SOFTWARE', 'REDE', 'ACESSO', 'IMPRESSOR
 
 const SELECT_MEMBRO = { id: true, nome: true, email: true, avatar: true, setor: true, perfil: true, adminDoTime: true };
 
+// As categorias do time ficam numa tabela de junção (TimeCategoria); a API
+// continua devolvendo `categorias` como lista de textos, como sempre.
+const INCLUDE_TIME = {
+  membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } },
+  categorias: { select: { categoria: true }, orderBy: { categoria: 'asc' } },
+};
+
+function formatarTime(time) {
+  return { ...time, categorias: time.categorias.map((c) => c.categoria) };
+}
+
 // Quem pode mexer num time: o ADMIN global do sistema (manda em qualquer
 // time) ou o admin designado daquele time específico.
 async function podeGerenciar(usuarioJwt, timeId) {
@@ -46,7 +57,10 @@ async function criar(req, res) {
     }
 
     const time = await prisma.time.create({
-      data: { nome: nome.trim(), categorias },
+      data: {
+        nome: nome.trim(),
+        categorias: { create: [...new Set(categorias)].map((categoria) => ({ categoria })) },
+      },
     });
 
     if (adminId) {
@@ -59,10 +73,10 @@ async function criar(req, res) {
 
     const criado = await prisma.time.findUnique({
       where: { id: time.id },
-      include: { membros: { select: SELECT_MEMBRO } },
+      include: INCLUDE_TIME,
     });
 
-    return res.status(201).json(criado);
+    return res.status(201).json(formatarTime(criado));
   } catch (err) {
     console.error('Erro ao criar time:', err);
     return res.status(500).json({ erro: 'Erro ao criar time' });
@@ -74,10 +88,13 @@ async function listar(req, res) {
   try {
     const times = await prisma.time.findMany({
       orderBy: { nome: 'asc' },
-      include: { _count: { select: { membros: true } } },
+      include: {
+        _count: { select: { membros: true } },
+        categorias: { select: { categoria: true }, orderBy: { categoria: 'asc' } },
+      },
     });
 
-    return res.json(times);
+    return res.json(times.map(formatarTime));
   } catch (err) {
     console.error('Erro ao listar times:', err);
     return res.status(500).json({ erro: 'Erro ao listar times' });
@@ -91,12 +108,12 @@ async function buscarPorId(req, res) {
   try {
     const time = await prisma.time.findUnique({
       where: { id },
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
     if (!time) return res.status(404).json({ erro: 'Time não encontrado' });
 
-    return res.json({ ...time, podeGerenciar: await podeGerenciar(req.usuario, id) });
+    return res.json({ ...formatarTime(time), podeGerenciar: await podeGerenciar(req.usuario, id) });
   } catch (err) {
     console.error('Erro ao buscar time:', err);
     return res.status(500).json({ erro: 'Erro ao buscar time' });
@@ -115,10 +132,10 @@ async function meuTime(req, res) {
 
     const time = await prisma.time.findUnique({
       where: { id: eu.timeId },
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
-    return res.json({ time: { ...time, podeGerenciar: await podeGerenciar(req.usuario, eu.timeId) } });
+    return res.json({ time: { ...formatarTime(time), podeGerenciar: await podeGerenciar(req.usuario, eu.timeId) } });
   } catch (err) {
     console.error('Erro ao buscar meu time:', err);
     return res.status(500).json({ erro: 'Erro ao buscar seu time' });
@@ -148,16 +165,20 @@ async function atualizar(req, res) {
     if (categorias !== undefined) {
       const erroCategoria = categoriasInvalidas(categorias);
       if (erroCategoria) return res.status(400).json({ erro: erroCategoria });
-      dados.categorias = categorias;
+      // substitui o conjunto inteiro: apaga as linhas antigas e grava as novas
+      dados.categorias = {
+        deleteMany: {},
+        create: [...new Set(categorias)].map((categoria) => ({ categoria })),
+      };
     }
 
     const atualizado = await prisma.time.update({
       where: { id },
       data: dados,
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
-    return res.json(atualizado);
+    return res.json(formatarTime(atualizado));
   } catch (err) {
     console.error('Erro ao atualizar time:', err);
     return res.status(500).json({ erro: 'Erro ao atualizar time' });
@@ -239,10 +260,10 @@ async function adicionarMembro(req, res) {
 
     const atualizado = await prisma.time.findUnique({
       where: { id },
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
-    return res.json(atualizado);
+    return res.json(formatarTime(atualizado));
   } catch (err) {
     console.error('Erro ao adicionar membro:', err);
     return res.status(500).json({ erro: 'Erro ao adicionar membro ao time' });
@@ -275,10 +296,10 @@ async function removerMembro(req, res) {
 
     const atualizado = await prisma.time.findUnique({
       where: { id },
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
-    return res.json(atualizado);
+    return res.json(formatarTime(atualizado));
   } catch (err) {
     console.error('Erro ao remover membro:', err);
     return res.status(500).json({ erro: 'Erro ao remover membro do time' });
@@ -323,10 +344,10 @@ async function definirAdminDoMembro(req, res) {
 
     const atualizado = await prisma.time.findUnique({
       where: { id },
-      include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
+      include: INCLUDE_TIME,
     });
 
-    return res.json(atualizado);
+    return res.json(formatarTime(atualizado));
   } catch (err) {
     console.error('Erro ao definir admin do time:', err);
     return res.status(500).json({ erro: 'Erro ao definir admin do time' });

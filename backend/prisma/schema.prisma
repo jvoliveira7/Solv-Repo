@@ -59,11 +59,22 @@ model Usuario {
 model Time {
   id         String   @id @default(uuid())
   nome       String   @db.VarChar(80)
-  categorias String[]
   criadoEm   DateTime @default(now()) @db.Timestamptz(3)
 
-  membros   Usuario[]
-  mensagens MensagemTime[]
+  categorias TimeCategoria[]
+  membros    Usuario[]
+  mensagens  MensagemTime[]
+}
+
+// Categorias que o time atende (1ª forma normal: uma linha por categoria,
+// em vez de um array dentro do Time). O valor é validado por CHECK.
+model TimeCategoria {
+  timeId    String
+  categoria String @db.VarChar(12) // HARDWARE | SOFTWARE | REDE | ACESSO | IMPRESSORA | OUTRO
+
+  time Time @relation(fields: [timeId], references: [id], onDelete: Cascade)
+
+  @@id([timeId, categoria])
 }
 
 // Chat interno do time (técnicos + admin do time conversando entre si).
