@@ -53,6 +53,7 @@ async function criar(req, res) {
         where: { id: adminId },
         data: { timeId: time.id, adminDoTime: true },
       });
+      req.app.get('io')?.in(`usuario:${adminId}`).socketsJoin(`time:${time.id}`);
     }
 
     const criado = await prisma.time.findUnique({
@@ -186,6 +187,14 @@ async function adicionarMembro(req, res) {
       data: { timeId: id, adminDoTime: false },
     });
 
+    // A sala do chat do time é assinada na conexão do socket — sem isto quem
+    // entra agora só receberia mensagens ao vivo depois de reconectar.
+    const io = req.app.get('io');
+    if (io) {
+      if (alvo.timeId) io.in(`usuario:${usuarioId}`).socketsLeave(`time:${alvo.timeId}`);
+      io.in(`usuario:${usuarioId}`).socketsJoin(`time:${id}`);
+    }
+
     const atualizado = await prisma.time.findUnique({
       where: { id },
       include: { membros: { select: SELECT_MEMBRO, orderBy: { nome: 'asc' } } },
@@ -219,6 +228,8 @@ async function removerMembro(req, res) {
       where: { id: usuarioId },
       data: { timeId: null, adminDoTime: false },
     });
+
+    req.app.get('io')?.in(`usuario:${usuarioId}`).socketsLeave(`time:${id}`);
 
     const atualizado = await prisma.time.findUnique({
       where: { id },

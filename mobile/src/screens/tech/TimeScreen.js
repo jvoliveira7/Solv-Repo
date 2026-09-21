@@ -93,7 +93,9 @@ export default function TimeScreen({ navigation, route }) {
   async function abrirModalMembros() {
     try {
       const { data } = await api.get('/times/tecnicos-disponiveis');
-      setDisponiveis(data.filter((t) => t.id !== usuario?.id && t.timeId !== time.id));
+      // quem já está neste time some da lista; o próprio usuário (ex.: o ADMIN
+      // que criou o time) pode se adicionar como qualquer outro
+      setDisponiveis(data.filter((t) => t.timeId !== time.id));
       setModalMembros(true);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar a lista de técnicos.');
@@ -212,7 +214,11 @@ export default function TimeScreen({ navigation, route }) {
           {time.membros.map((m) => (
             <TouchableOpacity
               key={m.id}
-              onLongPress={() => time.podeGerenciar && m.id !== usuario?.id && confirmarRemocao(m)}
+              onLongPress={() => (
+                time.podeGerenciar
+                && (m.id !== usuario?.id || usuario?.perfil === 'ADMIN')
+                && confirmarRemocao(m)
+              )}
               activeOpacity={time.podeGerenciar ? 0.7 : 1}
             >
               <View style={styles.membroAvatar}>
@@ -275,7 +281,9 @@ export default function TimeScreen({ navigation, route }) {
                   <TouchableOpacity style={styles.linhaDisponivel} onPress={() => adicionarMembro(item)}>
                     <Avatar uri={item.avatar} nome={item.nome} size={34} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.disponivelNome}>{item.nome}</Text>
+                      <Text style={styles.disponivelNome}>
+                        {item.nome}{item.id === usuario?.id ? ' (você)' : ''}
+                      </Text>
                       <Text style={styles.disponivelSub}>
                         {item.time ? `Hoje no time ${item.time.nome}` : 'Sem time'}
                       </Text>
