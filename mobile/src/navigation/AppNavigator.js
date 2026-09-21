@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, Text } from 'react-native';
@@ -57,6 +57,27 @@ function tabBarStyleComum(insetsBottom) {
     shadowRadius: 8,
   };
 }
+
+// Chat em tela cheia (como no WhatsApp): sem barra de abas, então o teclado
+// não briga com ela e nada de fundo aparece entre o campo e a borda.
+function estiloDaBarra(route, insetsBottom) {
+  if (getFocusedRouteNameFromRoute(route) === 'Chat') return { display: 'none' };
+  return tabBarStyleComum(insetsBottom);
+}
+
+// Sem tema, o React Navigation pinta o fundo das cenas de cinza claro
+// (#f2f2f2) e ele aparecia como faixa branca quando o teclado fechava.
+const temaSolv = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: cores.fundo,
+    card: cores.fundo,
+    border: cores.divisor,
+    primary: cores.azul,
+    text: cores.texto,
+  },
+};
 
 function HomeStack() {
   return (
@@ -149,7 +170,7 @@ function UserTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: tabBarStyleComum(insets.bottom),
+        tabBarStyle: estiloDaBarra(route, insets.bottom),
         tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
@@ -214,7 +235,7 @@ function TechTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: tabBarStyleComum(insets.bottom),
+        tabBarStyle: estiloDaBarra(route, insets.bottom),
         tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
@@ -258,7 +279,7 @@ export default function AppNavigator() {
   const isTecnico = usuario?.perfil === 'TECNICO' || usuario?.perfil === 'ADMIN';
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={temaSolv}>
       {!usuario ? <AuthStack /> : isTecnico ? <TechTabs /> : <UserTabs />}
     </NavigationContainer>
   );

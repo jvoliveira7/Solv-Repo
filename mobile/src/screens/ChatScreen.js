@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Animated,
@@ -8,11 +8,82 @@ import { conectarSocket } from '../services/socketService';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
 import { fontInter } from '../theme';
+import { useEvitarTeclado } from '../hooks/useEvitarTeclado';
 
 const PERFIL_ABREV = { TECNICO: 'TI', ADMIN: 'TI', USUARIO: '' };
 
+// Android: View comum + useEvitarTeclado; iOS: KeyboardAvoidingView padrão
+const Container = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
+// Fora do componente de propósito: declarado dentro, virava um tipo novo a
+// cada render (a cada tecla digitada) e remontava todos os ticks da lista.
+function Ticks({ status }) {
+  if (status === 'LIDA') return <Text style={[styles.ticks, styles.ticksLida]}>✓✓</Text>;
+  if (status === 'ENTREGUE') return <Text style={styles.ticks}>✓✓</Text>;
+  return <Text style={styles.ticks}>✓</Text>;
+}
+
+// memo: sem isso, digitar no campo re-renderizava toda mensagem da lista
+// (cada uma com foto de perfil), e a rolagem do chat travava.
+// Como nos mensageiros: foto e nome só na primeira mensagem de uma sequência
+// do mesmo autor; nas seguintes fica um espaço do tamanho da foto pra manter
+// o alinhamento, e o espaço entre balões é menor.
+const TAMANHO_AVATAR = 26;
+
+const MensagemItem = React.memo(function MensagemItem({ item, minha, primeira, ultima, meuAvatar, meuNome, encerrado, onResponder }) {
+  const abrev = PERFIL_ABREV[item.autor.perfil];
+  return (
+    <View
+      style={[
+        styles.linhaMensagem,
+        minha ? styles.linhaMensagemMinha : styles.linhaMensagemOutra,
+        { marginBottom: ultima ? 14 : 3 },
+      ]}
+    >
+      {!minha && (
+        primeira
+          ? <Avatar uri={item.autor.avatar} nome={item.autor.nome} size={TAMANHO_AVATAR} style={styles.avatarMensagem} />
+          : <View style={{ width: TAMANHO_AVATAR }} />
+      )}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onLongPress={() => !encerrado && onResponder(item)}
+        style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}
+      >
+        {!minha && primeira && (
+          <Text style={styles.bolhaAutor}>
+            {item.autor.nome}{abrev ? ` · ${abrev}` : ''}
+          </Text>
+        )}
+        <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
+          {item.respostaA && (
+            <View style={[styles.citacao, minha && styles.citacaoMinha]}>
+              <Text style={[styles.citacaoAutor, minha && styles.citacaoAutorMinha]}>{item.respostaA.autor.nome}</Text>
+              <Text style={[styles.citacaoTexto, minha && styles.citacaoTextoMinha]} numberOfLines={1}>{item.respostaA.texto}</Text>
+            </View>
+          )}
+          <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
+          <View style={styles.bolhaRodape}>
+            <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
+              {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {minha && <Ticks status={item.status} />}
+          </View>
+        </View>
+      </TouchableOpacity>
+      {minha && (
+        primeira
+          ? <Avatar uri={meuAvatar} nome={meuNome} size={TAMANHO_AVATAR} style={styles.avatarMensagem} />
+          : <View style={{ width: TAMANHO_AVATAR }} />
+      )}
+    </View>
+  );
+});
+
 export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const { ref: containerRef, sobreposicao, tecladoVisivel } = useEvitarTeclado();
+  const noFimRef = useRef(true);
   const { sessaoId, chamadoTitulo, contato, isTecnico } = route.params;
   const { usuario } = useAuth();
   const [mensagens, setMensagens] = useState([]);
@@ -130,6 +201,7 @@ export default function ChatScreen({ route, navigation }) {
     socketRef.current?.emit('mensagem', { sessaoId, texto, respostaAId: respondendoA?.id });
     setTexto('');
     setRespondendoA(null);
+    noFimRef.current = true; // quem envia sempre vai pro fim da conversa
     flatListRef.current?.scrollToEnd({ animated: true });
   }
 
@@ -146,51 +218,28 @@ export default function ChatScreen({ route, navigation }) {
     ]);
   }
 
-  function Ticks({ status }) {
-    if (status === 'LIDA') return <Text style={[styles.ticks, styles.ticksLida]}>✓✓</Text>;
-    if (status === 'ENTREGUE') return <Text style={styles.ticks}>✓✓</Text>;
-    return <Text style={styles.ticks}>✓</Text>;
+  const renderMensagem = useCallback(({ item, index }) => (
+    <MensagemItem
+      item={item}
+      minha={item.autor.id === usuario.id}
+      primeira={mensagens[index - 1]?.autor.id !== item.autor.id}
+      ultima={mensagens[index + 1]?.autor.id !== item.autor.id}
+      meuAvatar={usuario.avatar}
+      meuNome={usuario.nome}
+      encerrado={encerrado}
+      onResponder={setRespondendoA}
+    />
+  ), [mensagens, usuario.id, usuario.avatar, usuario.nome, encerrado]);
+
+  // Só acompanha novas mensagens se a pessoa já está no fim da conversa;
+  // se subiu pra ler o histórico, não puxa de volta.
+  function aoRolar({ nativeEvent }) {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    noFimRef.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
   }
 
-  function renderMensagem({ item }) {
-    const minha = item.autor.id === usuario.id;
-    const abrev = PERFIL_ABREV[item.autor.perfil];
-    return (
-      <View style={[styles.linhaMensagem, minha ? styles.linhaMensagemMinha : styles.linhaMensagemOutra]}>
-        {!minha && (
-          <Avatar uri={item.autor.avatar} nome={item.autor.nome} size={26} style={styles.avatarMensagem} />
-        )}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onLongPress={() => !encerrado && setRespondendoA(item)}
-          style={[styles.bolhaWrap, minha ? styles.bolhaWrapMinha : styles.bolhaWrapOutra]}
-        >
-          {!minha && (
-            <Text style={styles.bolhaAutor}>
-              {item.autor.nome}{abrev ? ` · ${abrev}` : ''}
-            </Text>
-          )}
-          <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
-            {item.respostaA && (
-              <View style={[styles.citacao, minha && styles.citacaoMinha]}>
-                <Text style={[styles.citacaoAutor, minha && styles.citacaoAutorMinha]}>{item.respostaA.autor.nome}</Text>
-                <Text style={[styles.citacaoTexto, minha && styles.citacaoTextoMinha]} numberOfLines={1}>{item.respostaA.texto}</Text>
-              </View>
-            )}
-            <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
-            <View style={styles.bolhaRodape}>
-              <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
-                {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-              {minha && <Ticks status={item.status} />}
-            </View>
-          </View>
-        </TouchableOpacity>
-        {minha && (
-          <Avatar uri={usuario.avatar} nome={usuario.nome} size={26} style={styles.avatarMensagem} />
-        )}
-      </View>
-    );
+  function irParaOFim(animado) {
+    if (noFimRef.current) flatListRef.current?.scrollToEnd({ animated: animado });
   }
 
   if (conectando) {
@@ -203,7 +252,12 @@ export default function ChatScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Container
+      ref={containerRef}
+      collapsable={false}
+      style={[styles.container, { paddingBottom: sobreposicao }]}
+      {...(Platform.OS === 'ios' ? { behavior: 'padding' } : {})}
+    >
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.voltarBotao} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.voltarSeta}>←</Text>
@@ -240,7 +294,13 @@ export default function ChatScreen({ route, navigation }) {
         keyExtractor={(item) => item.id}
         renderItem={renderMensagem}
         contentContainerStyle={styles.listaMensagens}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onScroll={aoRolar}
+        scrollEventThrottle={100}
+        onContentSizeChange={() => irParaOFim(false)}
+        onLayout={() => irParaOFim(false)}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={15}
+        windowSize={9}
         ListHeaderComponent={
           <View style={styles.pillWrap}>
             <View style={styles.pill}>
@@ -278,7 +338,7 @@ export default function ChatScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           )}
-          <View style={[styles.inputArea, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={[styles.inputArea, { paddingBottom: tecladoVisivel ? 12 : insets.bottom + 12 }]}>
             <TextInput
               style={styles.input}
               placeholder="Digite uma mensagem..."
@@ -294,7 +354,7 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </Container>
   );
 }
 
@@ -327,10 +387,10 @@ const styles = StyleSheet.create({
   pill: { backgroundColor: '#151824', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
   pillTexto: { color: '#888', fontSize: 12 },
 
-  linhaMensagem: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14, gap: 6 },
+  linhaMensagem: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   linhaMensagemMinha: { justifyContent: 'flex-end' },
   linhaMensagemOutra: { justifyContent: 'flex-start' },
-  avatarMensagem: { marginBottom: 2 },
+  avatarMensagem: { marginTop: 2 },
   bolhaWrap: { maxWidth: '74%' },
   bolhaWrapMinha: {},
   bolhaWrapOutra: {},

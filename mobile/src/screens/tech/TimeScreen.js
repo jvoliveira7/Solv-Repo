@@ -171,13 +171,20 @@ export default function TimeScreen({ navigation, route }) {
     );
   }
 
-  function renderMensagem({ item }) {
+  // Foto e nome só na primeira mensagem de uma sequência do mesmo autor
+  function renderMensagem({ item, index }) {
     const minha = item.autor.id === usuario?.id;
+    const primeira = mensagens[index - 1]?.autor.id !== item.autor.id;
+    const ultima = mensagens[index + 1]?.autor.id !== item.autor.id;
     return (
-      <View style={[styles.linhaMsg, minha ? styles.linhaMsgMinha : styles.linhaMsgOutra]}>
-        {!minha && <Avatar uri={item.autor.avatar} nome={item.autor.nome} size={26} />}
+      <View style={[styles.linhaMsg, minha ? styles.linhaMsgMinha : styles.linhaMsgOutra, { marginBottom: ultima ? 12 : 3 }]}>
+        {!minha && (
+          primeira
+            ? <Avatar uri={item.autor.avatar} nome={item.autor.nome} size={26} />
+            : <View style={{ width: 26 }} />
+        )}
         <View style={[styles.bolha, minha ? styles.bolhaMinha : styles.bolhaOutra]}>
-          {!minha && <Text style={styles.bolhaAutor}>{item.autor.nome}</Text>}
+          {!minha && primeira && <Text style={styles.bolhaAutor}>{item.autor.nome}</Text>}
           <Text style={[styles.bolhaTexto, minha && styles.bolhaTextoMinha]}>{item.texto}</Text>
           <Text style={[styles.bolhaHora, minha && styles.bolhaHoraMinha]}>
             {new Date(item.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -355,7 +362,7 @@ const styles = StyleSheet.create({
 
   lista: { padding: espaco.lg },
   semMensagens: { color: cores.textoTerciario, fontSize: 14, textAlign: 'center', marginTop: 32 },
-  linhaMsg: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 12 },
+  linhaMsg: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   linhaMsgMinha: { justifyContent: 'flex-end' },
   linhaMsgOutra: { justifyContent: 'flex-start' },
   bolha: { maxWidth: '76%', borderRadius: raio.lg, paddingHorizontal: 13, paddingVertical: 9 },
