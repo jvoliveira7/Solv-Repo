@@ -5,6 +5,7 @@ const {
   buscarPorId,
   meuTime,
   atualizar,
+  excluir,
   adicionarMembro,
   removerMembro,
   definirAdminDoMembro,
@@ -27,6 +28,7 @@ router.post('/', apenasAdmin, criar); // só ADMIN global cria time do zero
 router.get('/', listar);
 router.get('/:id', buscarPorId);
 router.patch('/:id', atualizar);
+router.delete('/:id', apenasAdmin, excluir); // só ADMIN global exclui time
 
 // Guard de admin-do-time fica dentro do controller (podeGerenciar), porque
 // depende de qual time é — middleware genérico não daria conta.

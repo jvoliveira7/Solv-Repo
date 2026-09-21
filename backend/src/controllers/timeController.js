@@ -158,6 +158,42 @@ async function atualizar(req, res) {
   }
 }
 
+// DELETE /api/times/:id  (apenas ADMIN global)
+// Os técnicos do time não são apagados: só ficam sem time (voltam pra fila
+// geral). O chat do time vai junto — ele só existe dentro do time.
+async function excluir(req, res) {
+  const { id } = req.params;
+
+  try {
+    const time = await prisma.time.findUnique({
+      where: { id },
+      include: { _count: { select: { membros: true, mensagens: true } } },
+    });
+    if (!time) return res.status(404).json({ erro: 'Time não encontrado' });
+
+    await prisma.$transaction([
+      prisma.mensagemTime.deleteMany({ where: { timeId: id } }),
+      prisma.usuario.updateMany({
+        where: { timeId: id },
+        data: { timeId: null, adminDoTime: false },
+      }),
+      prisma.time.delete({ where: { id } }),
+    ]);
+
+    // tira os sockets já conectados da sala do time
+    req.app.get('io')?.socketsLeave(`time:${id}`);
+
+    return res.json({
+      ok: true,
+      membrosLiberados: time._count.membros,
+      mensagensApagadas: time._count.mensagens,
+    });
+  } catch (err) {
+    console.error('Erro ao excluir time:', err);
+    return res.status(500).json({ erro: 'Erro ao excluir time' });
+  }
+}
+
 // POST /api/times/:id/membros
 async function adicionarMembro(req, res) {
   const { id } = req.params;
@@ -341,6 +377,7 @@ module.exports = {
   buscarPorId,
   meuTime,
   atualizar,
+  excluir,
   adicionarMembro,
   removerMembro,
   definirAdminDoMembro,

@@ -135,6 +135,42 @@ export default function TimeScreen({ navigation, route }) {
     ]);
   }
 
+  // Exclusão é irreversível (apaga o chat do time), então pede duas confirmações
+  function excluirTime() {
+    const membros = time.membros.length;
+    Alert.alert(
+      `Excluir o time "${time.nome}"?`,
+      `${membros} técnico(s) ficam sem time e voltam pra fila geral. O chat do time será apagado.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => Alert.alert(
+            'Tem certeza?',
+            'Essa ação não pode ser desfeita.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Sim, excluir',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await api.delete(`/times/${time.id}`);
+                    if (navigation.canGoBack()) navigation.goBack();
+                    else carregarTime();
+                  } catch (err) {
+                    Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível excluir o time.');
+                  }
+                },
+              },
+            ]
+          ),
+        },
+      ]
+    );
+  }
+
   if (carregando) {
     return (
       <View style={styles.centro}>
@@ -215,6 +251,11 @@ export default function TimeScreen({ navigation, route }) {
           {usuario?.perfil === 'ADMIN' && !timeId && (
             <TouchableOpacity onPress={() => navigation.navigate('GerenciarTimes')} style={styles.botaoIcone} hitSlop={8}>
               <Ionicons name="settings-outline" size={18} color={cores.textoSecundario} />
+            </TouchableOpacity>
+          )}
+          {usuario?.perfil === 'ADMIN' && (
+            <TouchableOpacity onPress={excluirTime} style={[styles.botaoIcone, styles.botaoExcluir]} hitSlop={8}>
+              <Ionicons name="trash-outline" size={18} color={cores.erro} />
             </TouchableOpacity>
           )}
         </View>
@@ -340,6 +381,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: cores.cardBorda, justifyContent: 'center', alignItems: 'center',
   },
 
+  botaoExcluir: { borderColor: cores.erroSuave },
   categoriasLinha: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   categoriaChip: {
     backgroundColor: cores.azulSuave, borderRadius: raio.sm,
