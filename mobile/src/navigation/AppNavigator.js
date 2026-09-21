@@ -150,6 +150,7 @@ function UserTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: tabBarStyleComum(insets.bottom),
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
         tabBarShowLabel: false,
@@ -214,6 +215,7 @@ function TechTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: tabBarStyleComum(insets.bottom),
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: cores.azul,
         tabBarInactiveTintColor: cores.textoTerciario,
         tabBarShowLabel: false,
