@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,8 +23,6 @@ export default function DetalheChamadoScreen({ route, navigation }) {
   const { id } = route.params;
   const [chamado, setChamado] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [comentario, setComentario] = useState('');
-  const [enviando, setEnviando] = useState(false);
   const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false);
   const [modalAvaliacaoVisivel, setModalAvaliacaoVisivel] = useState(false);
   const [denuncia, setDenuncia] = useState(null);
@@ -102,20 +100,6 @@ export default function DetalheChamadoScreen({ route, navigation }) {
       contato: chamado?.tecnico,
       isTecnico: false,
     });
-  }
-
-  async function handleComentario() {
-    if (!comentario.trim()) return;
-    setEnviando(true);
-    try {
-      await api.post(`/chamados/${id}/comentarios`, { texto: comentario });
-      setComentario('');
-      carregarChamado();
-    } catch {
-      Alert.alert('Erro', 'Não foi possível enviar o comentário.');
-    } finally {
-      setEnviando(false);
-    }
   }
 
   async function handleAvaliar(nota, comentarioTexto) {
@@ -293,49 +277,7 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           <Text style={styles.descricao}>{chamado.descricao}</Text>
         </View>
 
-        {/* Comentários */}
-        <Text style={styles.secaoTitulo}>Histórico ({chamado.comentarios.length})</Text>
-        {chamado.comentarios.length === 0 && (
-          <Text style={styles.vazioTexto}>Nenhum comentário ainda.</Text>
-        )}
-        {chamado.comentarios.map((c) => (
-          <View key={c.id} style={styles.comentario}>
-            <View style={styles.comentarioTopo}>
-              <Avatar uri={c.autor.avatar} nome={c.autor.nome} size={28} cor={cores.cardBorda} fonteSize={10} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.comentarioAutor}>{c.autor.nome}
-                  <Text style={styles.comentarioPerfil}> · {c.autor.perfil}</Text>
-                </Text>
-                <Text style={styles.comentarioData}>{tempoRelativo(c.criadoEm)}</Text>
-              </View>
-            </View>
-            <Text style={styles.comentarioTexto}>{c.texto}</Text>
-          </View>
-        ))}
-
       </ScrollView>
-
-      {chamado.status !== 'FECHADO' && (
-        <View style={styles.inputArea}>
-          <TextInput
-            style={styles.inputComentario}
-            placeholder="Adicionar comentário..."
-            placeholderTextColor={cores.placeholder}
-            value={comentario}
-            onChangeText={setComentario}
-          />
-          <TouchableOpacity
-            style={[styles.botaoEnviar, enviando && { opacity: 0.6 }]}
-            onPress={handleComentario}
-            disabled={enviando}
-          >
-            {enviando
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.botaoEnviarTexto}>↑</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      )}
 
       <AvaliacaoModal
         visible={modalAvaliacaoVisivel}
@@ -424,28 +366,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10, marginTop: 8,
   },
   descricao: { color: cores.texto, fontSize: 15, lineHeight: 22 },
-  vazioTexto: { color: cores.textoTerciario, fontSize: 14 },
-
-  comentario: { ...comum.card, marginBottom: 10 },
-  comentarioTopo: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  comentarioAvatar: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: cores.cardBorda,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  comentarioAvatarTexto: { color: cores.textoSecundario, fontSize: 10, fontFamily: fontInter.bold },
-  comentarioAutor: { color: cores.texto, fontFamily: fontInter.bold, fontSize: 13 },
-  comentarioPerfil: { color: cores.textoTerciario, fontWeight: '400' },
-  comentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
-  comentarioData: { color: cores.textoTerciario, fontSize: 11, marginTop: 1 },
-
-  inputArea: {
-    flexDirection: 'row', padding: 12, borderTopWidth: 1,
-    borderTopColor: cores.cardBorda, backgroundColor: cores.fundo, gap: 8,
-  },
-  inputComentario: { flex: 1, ...comum.input, paddingVertical: 10 },
-  botaoEnviar: {
-    backgroundColor: cores.azul, borderRadius: raio.sm,
-    width: 44, justifyContent: 'center', alignItems: 'center',
-  },
-  botaoEnviarTexto: { color: '#fff', fontSize: 20, fontFamily: fontInter.bold },
 });

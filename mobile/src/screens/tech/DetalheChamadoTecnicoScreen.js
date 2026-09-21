@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import api from '../../services/api';
@@ -22,7 +22,6 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   const { id } = route.params;
   const [chamado, setChamado] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [anotacao, setAnotacao] = useState('');
   const [atualizando, setAtualizando] = useState(false);
 
   const { sessao: sessaoChat, convidar, aceitar, recusar } = useChatSessao(id);
@@ -78,11 +77,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   async function handleAtualizarStatus(novoStatus) {
     setAtualizando(true);
     try {
-      await api.patch(`/chamados/${id}/status`, {
-        status: novoStatus,
-        anotacao: anotacao.trim() || undefined,
-      });
-      setAnotacao('');
+      await api.patch(`/chamados/${id}/status`, { status: novoStatus });
       carregarChamado();
     } catch (err) {
       Alert.alert('Erro', err.response?.data?.erro || 'Erro ao atualizar status.');
@@ -94,7 +89,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   function confirmarStatus(novoStatus) {
     Alert.alert(
       `Mover para "${statusLabel[novoStatus]}"?`,
-      anotacao ? `Anotação: "${anotacao}"` : 'Sem anotação.',
+      'O solicitante vê essa mudança de status no chamado.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Confirmar', onPress: () => handleAtualizarStatus(novoStatus) },
@@ -247,39 +242,10 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Histórico */}
-        <Text style={styles.secaoTitulo}>Histórico ({chamado.comentarios.length})</Text>
-        {chamado.comentarios.length === 0 && (
-          <Text style={styles.vazioTexto}>Nenhuma anotação ainda.</Text>
-        )}
-        {chamado.comentarios.map((c) => (
-          <View key={c.id} style={styles.comentario}>
-            <View style={styles.comentarioTopo}>
-              <Avatar uri={c.autor.avatar} nome={c.autor.nome} size={28} cor={cores.cardBorda} fonteSize={10} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.comentarioAutor}>{c.autor.nome}
-                  <Text style={styles.comentarioPerfil}> · {c.autor.perfil}</Text>
-                </Text>
-                <Text style={styles.comentarioData}>{tempoRelativo(c.criadoEm)}</Text>
-              </View>
-            </View>
-            <Text style={styles.comentarioTexto}>{c.texto}</Text>
-          </View>
-        ))}
-
         {/* Ações */}
         {proximosStatus.length > 0 && (
           <View style={styles.acoesCard}>
-            <Text style={[styles.secaoTitulo, styles.secaoTituloTopo]}>Anotação (opcional)</Text>
-            <TextInput
-              style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-              placeholder="Registre o que foi feito ou observado..."
-              placeholderTextColor={cores.placeholder}
-              multiline
-              value={anotacao}
-              onChangeText={setAnotacao}
-            />
-            <Text style={styles.secaoTitulo}>Mover para</Text>
+            <Text style={[styles.secaoTitulo, styles.secaoTituloTopo]}>Mover para</Text>
             <View style={styles.acoesRow}>
               {proximosStatus.map((status) => (
                 <TouchableOpacity
@@ -345,20 +311,10 @@ const styles = StyleSheet.create({
   },
   secaoTituloTopo: { marginTop: 0 },
   descricao: { color: cores.texto, fontSize: 15, lineHeight: 22 },
-  vazioTexto: { color: cores.textoTerciario, fontSize: 14 },
-
   avaliacaoCard: { ...comum.card, marginBottom: espaco.lg },
   avaliacaoComentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20, marginTop: 10 },
 
-  comentario: { ...comum.card, marginBottom: 10 },
-  comentarioTopo: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  comentarioAutor: { color: cores.texto, fontFamily: fontInter.bold, fontSize: 13 },
-  comentarioPerfil: { color: cores.textoTerciario, fontWeight: '400' },
-  comentarioTexto: { color: cores.textoSecundario, fontSize: 14, lineHeight: 20 },
-  comentarioData: { color: cores.textoTerciario, fontSize: 11, marginTop: 1 },
-
   acoesCard: { ...comum.card, marginTop: espaco.sm },
-  input: { ...comum.input, marginBottom: espaco.lg },
   acoesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   botaoAcao: {
     flex: 1, paddingVertical: 14, borderRadius: raio.md,

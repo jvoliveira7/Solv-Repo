@@ -154,9 +154,6 @@ export default function PainelTecnicoScreen({ navigation }) {
               {chatDisponivel && (
                 <Text style={styles.chatDisponivel}>💬 Chat</Text>
               )}
-              {item._count.comentarios > 0 && (
-                <Text style={styles.cardComentarios}>📝 {item._count.comentarios}</Text>
-              )}
             </View>
 
             {aguardando && (
@@ -380,7 +377,6 @@ const styles = StyleSheet.create({
   cardRodape: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   tempoTexto: { fontSize: 12, fontFamily: fontInter.semibold },
   chatDisponivel: { color: cores.azulClaro, fontSize: 12, fontFamily: fontInter.semibold },
-  cardComentarios: { color: cores.textoTerciario, fontSize: 12, fontFamily: fontInter.regular },
 
   aguardandoFaixa: {
     backgroundColor: cores.infoSuave, borderRadius: raio.sm,
