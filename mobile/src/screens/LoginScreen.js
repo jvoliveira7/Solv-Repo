@@ -138,6 +138,10 @@ export default function LoginScreen({ navigation }) {
           }
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.linkEsqueci} onPress={() => navigation.navigate('EsqueciSenha', { email: email.trim() })}>
+          <Text style={styles.linkCriarContaDestaque}>Esqueci minha senha</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.linkCriarConta} onPress={() => navigation.navigate('Register')}>
           <Text style={styles.linkCriarContaTexto}>
             Não tem conta? <Text style={styles.linkCriarContaDestaque}>Criar conta</Text>
@@ -221,7 +225,8 @@ const styles = StyleSheet.create({
   botao: { ...comum.botaoPrimario, marginTop: espaco.md, paddingVertical: 16 },
   botaoDesabilitado: { opacity: 0.6 },
   botaoTexto: { ...comum.botaoPrimarioTexto, fontSize: 16 },
-  linkCriarConta: { marginTop: espaco.xl, alignItems: 'center' },
+  linkEsqueci: { marginTop: espaco.lg, alignItems: 'center' },
+  linkCriarConta: { marginTop: espaco.lg, alignItems: 'center' },
   linkTecnico: { marginTop: espaco.sm, alignItems: 'center' },
   linkCriarContaTexto: { color: cores.textoTerciario, fontSize: 13 },
   linkCriarContaDestaque: { color: cores.azulClaro, fontFamily: fontInter.bold },
