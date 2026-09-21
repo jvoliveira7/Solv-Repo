@@ -11,14 +11,19 @@ import { conectarSocket } from '../../services/socketService';
 import api from '../../services/api';
 import { cores, espaco, raio, comum, fontInter } from '../../theme';
 import Avatar from '../../components/Avatar';
+import { useEvitarTeclado } from '../../hooks/useEvitarTeclado';
 
 const CATEGORIA_ICONE = {
   HARDWARE: '🖥️', SOFTWARE: '💾', REDE: '📶',
   ACESSO: '🔑', IMPRESSORA: '🖨️', OUTRO: '⋯',
 };
 
+// Android: View comum + useEvitarTeclado; iOS: KeyboardAvoidingView padrão
+const Container = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
 export default function TimeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { ref, sobreposicao, tecladoVisivel } = useEvitarTeclado();
   const { usuario } = useAuth();
   // Sem param: "meu time" (aba Time do técnico). Com param: ADMIN olhando um
   // time específico a partir de GerenciarTimesScreen — mesma tela, fonte
@@ -183,7 +188,12 @@ export default function TimeScreen({ navigation, route }) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Container
+      ref={ref}
+      collapsable={false}
+      style={[styles.container, { paddingBottom: sobreposicao }]}
+      {...(Platform.OS === 'ios' ? { behavior: 'padding' } : {})}
+    >
       <View style={[styles.cabecalho, { paddingTop: insets.top + 16 }]}>
         <View style={styles.cabecalhoTopo}>
           {navigation.canGoBack() && (
@@ -247,7 +257,7 @@ export default function TimeScreen({ navigation, route }) {
         }
       />
 
-      <View style={[styles.inputArea, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.inputArea, { paddingBottom: tecladoVisivel ? 12 : insets.bottom + 12 }]}>
         <TextInput
           style={styles.input}
           placeholder="Mensagem para o time..."
@@ -299,7 +309,7 @@ export default function TimeScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </Container>
   );
 }
 
