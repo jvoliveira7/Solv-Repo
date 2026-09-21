@@ -43,7 +43,7 @@ async function listarMensagens(req, res) {
 
     if (!sessao) return res.status(404).json({ erro: 'Sessão não encontrada' });
 
-    const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
+    const temAcesso = sessao.solicitanteId === usuarioId || sessao.tecnicoId === usuarioId;
     if (!temAcesso) return res.status(403).json({ erro: 'Acesso negado' });
 
     const mensagens = await prisma.mensagem.findMany({
@@ -68,11 +68,11 @@ async function listarChats(req, res) {
 
   try {
     const sessoes = await prisma.chatSessao.findMany({
-      where: souTecnico ? { tecnicoId: usuarioId } : { usuarioId },
+      where: souTecnico ? { tecnicoId: usuarioId } : { solicitanteId: usuarioId },
       orderBy: { criadoEm: 'desc' },
       include: {
         chamado: { select: { id: true, titulo: true, status: true } },
-        usuario: { select: { id: true, nome: true, avatar: true } },
+        solicitante: { select: { id: true, nome: true, avatar: true } },
         tecnico: { select: { id: true, nome: true, avatar: true } },
         mensagens: { orderBy: { criadoEm: 'desc' }, take: 1 },
       },
@@ -91,7 +91,7 @@ async function listarChats(req, res) {
           chamadoStatus: s.chamado.status,
           status: s.status,
           iniciadoPor: s.iniciadoPor,
-          contato: souTecnico ? s.usuario : s.tecnico,
+          contato: souTecnico ? s.solicitante : s.tecnico,
           ultimaMensagem: s.mensagens[0] || null,
           naoLidas,
         };
@@ -122,7 +122,7 @@ async function recusarSessao(req, res) {
     if (!sessao) return res.status(404).json({ erro: 'Sessão não encontrada' });
 
     // Só quem recebeu a solicitação pode recusar
-    const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.usuarioId;
+    const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.solicitanteId;
     if (destinatarioId !== usuarioId) return res.status(403).json({ erro: 'Acesso negado' });
 
     if (sessao.status !== 'PENDENTE') {
@@ -134,7 +134,7 @@ async function recusarSessao(req, res) {
       data: { status: 'ENCERRADA' },
     });
 
-    const iniciadorId = sessao.iniciadoPor === 'USUARIO' ? sessao.usuarioId : sessao.tecnicoId;
+    const iniciadorId = sessao.iniciadoPor === 'USUARIO' ? sessao.solicitanteId : sessao.tecnicoId;
     req.app.get('io').to(`usuario:${iniciadorId}`).emit('chat_recusado', {
       sessaoId,
       chamadoId: sessao.chamadoId,
@@ -161,7 +161,7 @@ async function enviarMensagem(req, res) {
 
     if (sessao.status !== 'ATIVA') return res.status(400).json({ erro: 'Chat não está ativo' });
 
-    const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
+    const temAcesso = sessao.solicitanteId === usuarioId || sessao.tecnicoId === usuarioId;
     if (!temAcesso) return res.status(403).json({ erro: 'Acesso negado' });
 
     const io = req.app.get('io');
@@ -187,7 +187,7 @@ async function enviarMensagem(req, res) {
     // responde direto pela notificação (app fechado) nunca avisa o outro
     // lado se ele também não estiver com o app aberto.
     if (!outroJaPresente) {
-      const destinatarioId = sessao.usuarioId === usuarioId ? sessao.tecnicoId : sessao.usuarioId;
+      const destinatarioId = sessao.solicitanteId === usuarioId ? sessao.tecnicoId : sessao.solicitanteId;
       const chamado = await prisma.chamado.findUnique({
         where: { id: sessao.chamadoId },
         select: { titulo: true },

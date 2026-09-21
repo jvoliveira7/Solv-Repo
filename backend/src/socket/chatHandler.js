@@ -105,7 +105,7 @@ module.exports = function configurarSocket(io) {
         },
         create: {
           chamadoId,
-          usuarioId: chamado.solicitanteId,
+          solicitanteId: chamado.solicitanteId,
           tecnicoId: chamado.tecnicoId,
           status: statusInicial,
           iniciadoPor,
@@ -196,7 +196,7 @@ module.exports = function configurarSocket(io) {
         if (!sessao) return socket.emit('erro', { mensagem: 'Sessão não encontrada' });
         if (sessao.status !== 'PENDENTE') return socket.emit('erro', { mensagem: 'Sessão não está pendente' });
 
-        const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.usuarioId;
+        const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.solicitanteId;
         if (destinatarioId !== usuarioId) return socket.emit('erro', { mensagem: 'Acesso negado' });
 
         await prisma.chatSessao.update({
@@ -206,7 +206,7 @@ module.exports = function configurarSocket(io) {
 
         socket.join(`chat:${sessaoId}`);
 
-        const outroLadoId = sessao.iniciadoPor === 'USUARIO' ? sessao.usuarioId : sessao.tecnicoId;
+        const outroLadoId = sessao.iniciadoPor === 'USUARIO' ? sessao.solicitanteId : sessao.tecnicoId;
         const contatoAceitante = sessao.iniciadoPor === 'USUARIO' ? sessao.chamado.tecnico : sessao.chamado.solicitante;
 
         io.to(`usuario:${outroLadoId}`).emit('chat_aceito', {
@@ -235,7 +235,7 @@ module.exports = function configurarSocket(io) {
 
         if (!sessao) return socket.emit('erro', { mensagem: 'Sessão não encontrada' });
 
-        const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.usuarioId;
+        const destinatarioId = sessao.iniciadoPor === 'USUARIO' ? sessao.tecnicoId : sessao.solicitanteId;
         if (destinatarioId !== usuarioId) return socket.emit('erro', { mensagem: 'Acesso negado' });
 
         await prisma.chatSessao.update({
@@ -243,7 +243,7 @@ module.exports = function configurarSocket(io) {
           data: { status: 'ENCERRADA' },
         });
 
-        const iniciadorId = sessao.iniciadoPor === 'USUARIO' ? sessao.usuarioId : sessao.tecnicoId;
+        const iniciadorId = sessao.iniciadoPor === 'USUARIO' ? sessao.solicitanteId : sessao.tecnicoId;
         io.to(`usuario:${iniciadorId}`).emit('chat_recusado', { sessaoId, chamadoId: sessao.chamadoId });
         console.log(`Chat recusado: ${nome}`);
       } catch (err) {
@@ -259,7 +259,7 @@ module.exports = function configurarSocket(io) {
 
         if (!sessao) return socket.emit('erro', { mensagem: 'Sessão não encontrada' });
 
-        const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
+        const temAcesso = sessao.solicitanteId === usuarioId || sessao.tecnicoId === usuarioId;
         if (!temAcesso) return socket.emit('erro', { mensagem: 'Acesso negado' });
 
         if (sessao.status === 'PENDENTE') {
@@ -269,7 +269,7 @@ module.exports = function configurarSocket(io) {
         // ATIVA entra na room pra receber mensagens em tempo real; ENCERRADA é só leitura, não precisa da room
         if (sessao.status === 'ATIVA') socket.join(`chat:${sessaoId}`);
 
-        const outroId = sessao.usuarioId === usuarioId ? sessao.tecnicoId : sessao.usuarioId;
+        const outroId = sessao.solicitanteId === usuarioId ? sessao.tecnicoId : sessao.solicitanteId;
         const salaOutro = io.sockets.adapter.rooms.get(`usuario:${outroId}`);
         const contatoOnline = !!salaOutro && salaOutro.size > 0;
 
@@ -318,7 +318,7 @@ module.exports = function configurarSocket(io) {
           return socket.emit('erro', { mensagem: 'Chat não está ativo' });
         }
 
-        const temAcesso = sessao.usuarioId === usuarioId || sessao.tecnicoId === usuarioId;
+        const temAcesso = sessao.solicitanteId === usuarioId || sessao.tecnicoId === usuarioId;
         if (!temAcesso) return socket.emit('erro', { mensagem: 'Acesso negado' });
 
         // ENTREGUE de cara se o outro lado já está com a sala aberta
@@ -347,7 +347,7 @@ module.exports = function configurarSocket(io) {
         // Quem não está na sala não recebeu nada pelo socket — esse é o caso
         // que o push existe pra cobrir (app fechado ou em outra tela).
         if (!outroJaPresente) {
-          const destinatarioId = sessao.usuarioId === usuarioId ? sessao.tecnicoId : sessao.usuarioId;
+          const destinatarioId = sessao.solicitanteId === usuarioId ? sessao.tecnicoId : sessao.solicitanteId;
           const chamado = await prisma.chamado.findUnique({
             where: { id: sessao.chamadoId },
             select: { titulo: true },

@@ -49,7 +49,7 @@ model Usuario {
   chamadosAtendidos Chamado[]    @relation("Tecnico")
   mensagens         Mensagem[]
   mensagensTime     MensagemTime[]
-  chatsComoUsuario  ChatSessao[] @relation("ChatUsuario")
+  chatsComoSolicitante ChatSessao[] @relation("ChatSolicitante")
   chatsComoTecnico  ChatSessao[] @relation("ChatTecnico")
   avaliacoes        Avaliacao[]
 }
@@ -148,8 +148,8 @@ model ChatSessao {
   chamadoId String   @unique
   chamado   Chamado  @relation(fields: [chamadoId], references: [id])
 
-  usuarioId String
-  usuario   Usuario  @relation("ChatUsuario", fields: [usuarioId], references: [id])
+  solicitanteId String
+  solicitante   Usuario  @relation("ChatSolicitante", fields: [solicitanteId], references: [id])
 
   tecnicoId String
   tecnico   Usuario  @relation("ChatTecnico", fields: [tecnicoId], references: [id])
