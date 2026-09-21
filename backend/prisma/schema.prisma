@@ -28,6 +28,12 @@ model Usuario {
   suspenso        Boolean @default(false)
   motivoSuspensao String?
 
+  // Recuperação de senha: só guarda o hash do código de 6 dígitos, com
+  // validade curta (RN19) e limite de tentativas contra força bruta.
+  resetCodigoHash String?
+  resetExpiraEm   DateTime?
+  resetTentativas Int       @default(0)
+
   denunciasFeitas     Denuncia[] @relation("Denunciante")
   denunciasRecebidas  Denuncia[] @relation("Denunciado")
 

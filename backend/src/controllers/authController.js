@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const prisma = require('../config/prisma');
+const { enviarCodigoRedefinicao } = require('../services/emailService');
 
 //POST /api/auth/registro
 async function registro(req, res) {
@@ -159,6 +161,109 @@ async function login(req, res) {
   }
 }
 
+const VALIDADE_CODIGO_MIN = 15; // RN19
+const MAX_TENTATIVAS_CODIGO = 5;
+
+//POST /api/auth/esqueci-senha  { email }
+// Sempre responde a mesma coisa, exista o e-mail ou não — senão a rota
+// serviria pra descobrir quem tem conta.
+async function esqueciSenha(req, res) {
+  const email = req.body.email?.trim();
+  const resposta = {
+    mensagem: 'Se este e-mail estiver cadastrado, enviamos um código de 6 dígitos para ele.',
+  };
+
+  if (!email) return res.status(400).json({ erro: 'Informe o e-mail' });
+
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    if (!usuario) return res.json(resposta);
+
+    // Reenvio só depois de 1 minuto — evita usar a rota pra encher a caixa de alguém
+    const faltamMs = usuario.resetExpiraEm ? usuario.resetExpiraEm.getTime() - Date.now() : 0;
+    if (faltamMs > (VALIDADE_CODIGO_MIN - 1) * 60 * 1000) return res.json(resposta);
+
+    const codigo = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        resetCodigoHash: await bcrypt.hash(codigo, 10),
+        resetExpiraEm: new Date(Date.now() + VALIDADE_CODIGO_MIN * 60 * 1000),
+        resetTentativas: 0,
+      },
+    });
+
+    try {
+      await enviarCodigoRedefinicao({
+        para: usuario.email,
+        nome: usuario.nome,
+        codigo,
+        validadeMinutos: VALIDADE_CODIGO_MIN,
+      });
+    } catch (err) {
+      // falha de SMTP não pode revelar nada ao cliente; fica só no log do servidor
+      console.error('Erro ao enviar e-mail de redefinição:', err);
+    }
+
+    return res.json(resposta);
+  } catch (err) {
+    console.error('Erro em esqueci-senha:', err);
+    return res.status(500).json({ erro: 'Erro ao processar o pedido' });
+  }
+}
+
+//POST /api/auth/redefinir-senha  { email, codigo, novaSenha }
+async function redefinirSenha(req, res) {
+  const { email, codigo, novaSenha } = req.body;
+
+  if (!email || !codigo || !novaSenha) {
+    return res.status(400).json({ erro: 'E-mail, código e nova senha são obrigatórios' });
+  }
+  if (novaSenha.length < 6) {
+    return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres' });
+  }
+
+  const erroGenerico = { erro: 'Código inválido ou expirado' };
+
+  try {
+    const usuario = await prisma.usuario.findUnique({ where: { email: email.trim() } });
+
+    if (
+      !usuario?.resetCodigoHash
+      || !usuario.resetExpiraEm
+      || usuario.resetExpiraEm.getTime() < Date.now()
+      || usuario.resetTentativas >= MAX_TENTATIVAS_CODIGO
+    ) {
+      return res.status(400).json(erroGenerico);
+    }
+
+    const confere = await bcrypt.compare(String(codigo).trim(), usuario.resetCodigoHash);
+    if (!confere) {
+      await prisma.usuario.update({
+        where: { id: usuario.id },
+        data: { resetTentativas: { increment: 1 } },
+      });
+      return res.status(400).json(erroGenerico);
+    }
+
+    await prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        senha: await bcrypt.hash(novaSenha, 10),
+        resetCodigoHash: null,
+        resetExpiraEm: null,
+        resetTentativas: 0,
+      },
+    });
+
+    return res.json({ mensagem: 'Senha redefinida com sucesso' });
+  } catch (err) {
+    console.error('Erro em redefinir-senha:', err);
+    return res.status(500).json({ erro: 'Erro ao redefinir a senha' });
+  }
+}
+
 //GET /api/auth/me
 async function me(req, res) {
   try {
@@ -186,12 +291,6 @@ async function me(req, res) {
   }
 }
 
-// PATCH /api/auth/avatar
-// Recebe { avatar: "data:image/jpeg;base64,..." } ou { avatar: null } pra remover.
-// Guardado como base64 direto no banco — sem storage de arquivo externo no
-// projeto ainda. Funciona bem pra escala de TCC/demo; não é o ideal pra
-// produção (infla o banco, sem CDN). Se o projeto crescer, migrar pra um
-// bucket (S3/Cloudinary/etc.) e guardar só a URL aqui.
 async function atualizarAvatar(req, res) {
   const { avatar } = req.body;
 
@@ -256,4 +355,4 @@ function gerarToken(payload) {
   });
 }
 
-module.exports = { registro, registroTecnico, login, me, atualizarAvatar, atualizarPushToken };
+module.exports = { registro, registroTecnico, login, esqueciSenha, redefinirSenha, me, atualizarAvatar, atualizarPushToken };
