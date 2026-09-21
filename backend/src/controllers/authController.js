@@ -320,6 +320,41 @@ async function atualizarAvatar(req, res) {
   }
 }
 
+// PATCH /api/auth/setor  { setor }  — string vazia ou null remove o setor
+async function atualizarSetor(req, res) {
+  const { setor } = req.body;
+
+  if (setor !== null && setor !== undefined && typeof setor !== 'string') {
+    return res.status(400).json({ erro: 'Setor inválido' });
+  }
+
+  const novoSetor = setor?.trim() || null;
+  if (novoSetor && novoSetor.length > 80) {
+    return res.status(400).json({ erro: 'O setor pode ter no máximo 80 caracteres' });
+  }
+
+  try {
+    const usuario = await prisma.usuario.update({
+      where: { id: req.usuario.id },
+      data: { setor: novoSetor },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        setor: true,
+        avatar: true,
+        perfil: true,
+        criadoEm: true,
+      },
+    });
+
+    return res.json(usuario);
+  } catch (err) {
+    console.error('Erro ao atualizar setor:', err);
+    return res.status(500).json({ erro: 'Erro ao atualizar setor' });
+  }
+}
+
 async function atualizarPushToken(req, res) {
   const { pushToken } = req.body;
 
@@ -355,4 +390,4 @@ function gerarToken(payload) {
   });
 }
 
-module.exports = { registro, registroTecnico, login, esqueciSenha, redefinirSenha, me, atualizarAvatar, atualizarPushToken };
+module.exports = { registro, registroTecnico, login, esqueciSenha, redefinirSenha, me, atualizarAvatar, atualizarSetor, atualizarPushToken };

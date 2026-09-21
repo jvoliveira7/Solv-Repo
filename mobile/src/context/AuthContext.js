@@ -100,8 +100,15 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  async function atualizarSetor(setor) {
+    const { data } = await api.patch('/auth/setor', { setor });
+    dispatch({ type: 'ATUALIZAR_USUARIO', usuario: data });
+    await saveAuth(state.token, { ...state.usuario, ...data });
+    return data;
+  }
+
   return (
-    <AuthContext.Provider value={{ ...state, login, registrar, registrarTecnico, logout, atualizarAvatar }}>
+    <AuthContext.Provider value={{ ...state, login, registrar, registrarTecnico, logout, atualizarAvatar, atualizarSetor }}>
       {children}
     </AuthContext.Provider>
   );
