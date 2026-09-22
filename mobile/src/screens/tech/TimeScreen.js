@@ -339,7 +339,7 @@ export default function TimeScreen({ navigation, route }) {
                   <TouchableOpacity style={styles.linhaDisponivel} onPress={() => adicionarMembro(item)}>
                     <Avatar uri={item.avatar} nome={item.nome} size={34} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.disponivelNome}>
+                      <Text style={styles.disponivelNome} numberOfLines={1}>
                         {item.nome}{item.id === usuario?.id ? ' (você)' : ''}
                       </Text>
                       <Text style={styles.disponivelSub}>

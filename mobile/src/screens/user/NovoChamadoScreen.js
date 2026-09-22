@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: raio.md, paddingVertical: 13, marginBottom: espaco.xl,
   },
   bannerGuiadoIcone: { fontSize: 15 },
-  bannerGuiadoTexto: { color: cores.azulClaro, fontSize: 14, fontWeight: '600' },
+  bannerGuiadoTexto: { color: cores.azulClaro, fontSize: 14, fontFamily: fontInter.semibold },
 
   label: {
     color: cores.textoSecundario, fontSize: 11, fontFamily: fontInter.bold,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   cardCategoriaSelecionada: { backgroundColor: cores.azulSuave, borderColor: cores.azul },
   cardCategoriaIcone: { fontSize: 22 },
-  cardCategoriaTexto: { color: cores.textoSecundario, fontSize: 12, fontWeight: '600' },
+  cardCategoriaTexto: { color: cores.textoSecundario, fontSize: 12, fontFamily: fontInter.semibold },
   cardCategoriaTextoSelecionado: { color: cores.azulClaro },
 
   opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: raio.sm,
     borderWidth: 1, borderColor: cores.cardBorda, backgroundColor: cores.card,
   },
-  opcaoTexto: { color: cores.textoSecundario, fontSize: 13, fontWeight: '500' },
+  opcaoTexto: { color: cores.textoSecundario, fontSize: 13, fontFamily: fontInter.medium },
 
   botao: { ...comum.botaoPrimario, marginTop: 32 },
   botaoDesabilitado: { opacity: 0.6 },

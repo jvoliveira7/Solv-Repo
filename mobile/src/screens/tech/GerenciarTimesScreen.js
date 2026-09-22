@@ -97,7 +97,7 @@ export default function GerenciarTimesScreen() {
             onPress={() => navigation.navigate('MeuTime', { timeId: item.id })}
           >
             <View style={styles.cardTopo}>
-              <Text style={styles.cardNome}>{item.nome}</Text>
+              <Text style={styles.cardNome} numberOfLines={1}>{item.nome}</Text>
               <Ionicons name="chevron-forward" size={18} color={cores.textoTerciario} />
             </View>
             <View style={styles.chipsLinha}>
@@ -167,7 +167,7 @@ export default function GerenciarTimesScreen() {
                     style={[styles.linhaTecnico, adminId === t.id && styles.linhaTecnicoAtiva]}
                     onPress={() => setAdminId(adminId === t.id ? null : t.id)}
                   >
-                    <Text style={[styles.tecnicoNome, adminId === t.id && { color: cores.azulClaro }]}>{t.nome}</Text>
+                    <Text style={[styles.tecnicoNome, adminId === t.id && { color: cores.azulClaro }]} numberOfLines={1}>{t.nome}</Text>
                     {adminId === t.id && <Ionicons name="checkmark-circle" size={18} color={cores.azulClaro} />}
                   </TouchableOpacity>
                 ))
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   vazio: { color: cores.textoTerciario, fontSize: 14, textAlign: 'center', marginTop: 24 },
 
   card: { ...comum.card, marginBottom: 12 },
-  cardTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   cardNome: { color: cores.texto, fontSize: 16, fontFamily: fontInter.bold },
   chipsLinha: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   chip: { backgroundColor: cores.azulSuave, borderRadius: raio.sm, paddingHorizontal: 8, paddingVertical: 4 },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: cores.cardBorda, marginBottom: 6,
   },
   linhaTecnicoAtiva: { borderColor: cores.azul, backgroundColor: cores.azulSuave },
-  tecnicoNome: { color: cores.texto, fontSize: 14 },
+  tecnicoNome: { color: cores.texto, fontSize: 14, flexShrink: 1, marginRight: 8 },
 
   botaoCriar: { ...comum.botaoPrimario, marginTop: espaco.xl },
   botaoCriarTexto: { ...comum.botaoPrimarioTexto },

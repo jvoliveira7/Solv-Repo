@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   hora: { color: cores.textoTerciario, fontSize: 11 },
   chamadoTitulo: { color: cores.textoTerciario, fontSize: 12, marginTop: 1 },
   previa: { color: cores.textoSecundario, fontSize: 13, marginTop: 3 },
-  previaNaoLida: { color: cores.texto, fontWeight: '600' },
+  previaNaoLida: { color: cores.texto, fontFamily: fontInter.semibold },
   previaVazia: { color: cores.textoTerciario, fontSize: 13, marginTop: 3, fontStyle: 'italic' },
 
   badgeNaoLidas: {

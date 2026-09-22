@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { conectarSocket } from '../services/socketService';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
-import { fontInter } from '../theme';
+import { cores, fontInter } from '../theme';
 import { useEvitarTeclado } from '../hooks/useEvitarTeclado';
 
 const PERFIL_ABREV = { TECNICO: 'TI', ADMIN: 'TI', USUARIO: '' };
@@ -245,7 +245,7 @@ export default function ChatScreen({ route, navigation }) {
   if (conectando) {
     return (
       <View style={styles.centro}>
-        <ActivityIndicator size="large" color="#2d6fff" />
+        <ActivityIndicator size="large" color={cores.azul} />
         <Text style={styles.conectandoTexto}>Conectando ao chat...</Text>
       </View>
     );
@@ -270,8 +270,8 @@ export default function ChatScreen({ route, navigation }) {
           <View style={styles.statusLinha}>
             {!encerrado && (
               <Animated.View style={[styles.statusLinhaInterna, { opacity: statusOpacity }]}>
-                <View style={[styles.statusPonto, { backgroundColor: contatoOnline ? '#22c55e' : '#5c6270' }]} />
-                <Text style={[styles.statusTexto, { color: contatoOnline ? '#22c55e' : '#5c6270' }]}>
+                <View style={[styles.statusPonto, { backgroundColor: contatoOnline ? cores.sucesso : cores.textoTerciario }]} />
+                <Text style={[styles.statusTexto, { color: contatoOnline ? cores.sucesso : cores.textoTerciario }]}>
                   {contatoOnline ? 'Online' : 'Offline'}
                 </Text>
                 <Text style={styles.statusSeparador}> · </Text>
@@ -359,14 +359,14 @@ export default function ChatScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0c14' },
-  centro: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0c14', gap: 12 },
+  container: { flex: 1, backgroundColor: cores.fundo },
+  centro: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: cores.fundo, gap: 12 },
   conectandoTexto: { color: '#888', fontSize: 14 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#1e212c', backgroundColor: '#0a0c14',
+    borderBottomWidth: 1, borderBottomColor: cores.cardBorda, backgroundColor: cores.fundo,
   },
   voltarBotao: { paddingRight: 2 },
   voltarSeta: { color: '#fff', fontSize: 22 },
@@ -379,12 +379,12 @@ const styles = StyleSheet.create({
   statusSeparador: { color: '#555', fontSize: 12 },
   headerChamado: { color: '#777', fontSize: 12, flexShrink: 1 },
 
-  botaoEncerrar: { backgroundColor: '#ef444422', borderWidth: 1, borderColor: '#ef4444', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  botaoEncerrarTexto: { color: '#ef4444', fontSize: 13, fontFamily: fontInter.semibold },
+  botaoEncerrar: { backgroundColor: cores.erroSuave, borderWidth: 1, borderColor: cores.erro, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  botaoEncerrarTexto: { color: cores.erro, fontSize: 13, fontFamily: fontInter.semibold },
 
   listaMensagens: { padding: 16, paddingBottom: 8 },
   pillWrap: { alignItems: 'center', marginBottom: 16 },
-  pill: { backgroundColor: '#151824', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
+  pill: { backgroundColor: cores.card, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7 },
   pillTexto: { color: '#888', fontSize: 12 },
 
   linhaMensagem: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
@@ -394,10 +394,10 @@ const styles = StyleSheet.create({
   bolhaWrap: { maxWidth: '74%' },
   bolhaWrapMinha: {},
   bolhaWrapOutra: {},
-  bolhaAutor: { color: '#5b8cff', fontSize: 12, fontFamily: fontInter.bold, marginBottom: 5, marginLeft: 2 },
+  bolhaAutor: { color: cores.azulClaro, fontSize: 12, fontFamily: fontInter.bold, marginBottom: 5, marginLeft: 2 },
   bolha: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
-  bolhaMinha: { backgroundColor: '#2d6fff', borderBottomRightRadius: 4 },
-  bolhaOutra: { backgroundColor: '#151824', borderBottomLeftRadius: 4 },
+  bolhaMinha: { backgroundColor: cores.azul, borderBottomRightRadius: 4 },
+  bolhaOutra: { backgroundColor: cores.card, borderBottomLeftRadius: 4 },
   bolhaTexto: { color: '#d8dae0', fontSize: 15, lineHeight: 21 },
   bolhaTextoMinha: { color: '#fff' },
   bolhaRodape: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
@@ -407,38 +407,38 @@ const styles = StyleSheet.create({
   ticksLida: { color: '#7dd3fc' },
 
   citacao: {
-    borderLeftWidth: 3, borderLeftColor: '#5b8cff', backgroundColor: '#ffffff0d',
+    borderLeftWidth: 3, borderLeftColor: cores.azulClaro, backgroundColor: '#ffffff0d',
     borderRadius: 6, paddingVertical: 5, paddingHorizontal: 8, marginBottom: 6,
   },
   citacaoMinha: { backgroundColor: '#ffffff22', borderLeftColor: '#fff' },
-  citacaoAutor: { color: '#5b8cff', fontSize: 11, fontFamily: fontInter.bold },
+  citacaoAutor: { color: cores.azulClaro, fontSize: 11, fontFamily: fontInter.bold },
   citacaoAutorMinha: { color: '#e8efff' },
-  citacaoTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
+  citacaoTexto: { color: cores.textoSecundario, fontSize: 12, marginTop: 1 },
   citacaoTextoMinha: { color: '#ffffffcc' },
 
   vazioTexto: { color: '#555', textAlign: 'center', marginTop: 40, fontSize: 14 },
 
   respostaPreview: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#151824', paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: '#1e212c',
+    backgroundColor: cores.card, paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: cores.cardBorda,
   },
-  respostaPreviewLinha: { flex: 1, borderLeftWidth: 3, borderLeftColor: '#2d6fff', paddingLeft: 10 },
-  respostaPreviewAutor: { color: '#5b8cff', fontSize: 12, fontFamily: fontInter.bold },
-  respostaPreviewTexto: { color: '#9aa0ad', fontSize: 12, marginTop: 1 },
+  respostaPreviewLinha: { flex: 1, borderLeftWidth: 3, borderLeftColor: cores.azul, paddingLeft: 10 },
+  respostaPreviewAutor: { color: cores.azulClaro, fontSize: 12, fontFamily: fontInter.bold },
+  respostaPreviewTexto: { color: cores.textoSecundario, fontSize: 12, marginTop: 1 },
   respostaPreviewFechar: { color: '#666', fontSize: 16, paddingHorizontal: 8 },
 
   inputArea: {
     flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10,
-    borderTopWidth: 1, borderTopColor: '#1e212c', backgroundColor: '#0a0c14',
+    borderTopWidth: 1, borderTopColor: cores.cardBorda, backgroundColor: cores.fundo,
   },
   input: {
-    flex: 1, backgroundColor: '#151824', borderRadius: 24,
+    flex: 1, backgroundColor: cores.card, borderRadius: 24,
     paddingHorizontal: 18, paddingVertical: 12, color: '#fff', fontSize: 15,
   },
-  botaoEnviar: { backgroundColor: '#2d6fff', width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
+  botaoEnviar: { backgroundColor: cores.azul, width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
   botaoEnviarTexto: { color: '#fff', fontSize: 17 },
 
-  encerradoBanner: { padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#1e212c', backgroundColor: '#0d0f18' },
+  encerradoBanner: { padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: cores.cardBorda, backgroundColor: '#0d0f18' },
   encerradoTexto: { color: '#888', fontSize: 14 },
 });
