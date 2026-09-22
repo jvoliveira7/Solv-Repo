@@ -73,6 +73,9 @@ model Usuario {
   chatsComoSolicitante ChatSessao[] @relation("ChatSolicitante")
   chatsComoTecnico  ChatSessao[] @relation("ChatTecnico")
   avaliacoes        Avaliacao[]
+
+  // "quem é do meu time" (fila do painel, membros do time) filtra por timeId
+  @@index([timeId])
 }
 
 // Agrupa técnicos por especialidade. As categorias definem quais chamados
@@ -111,6 +114,9 @@ model MensagemTime {
 
   timeId String
   time   Time   @relation(fields: [timeId], references: [id])
+
+  // histórico do chat do time é sempre buscado por timeId
+  @@index([timeId])
 }
 
 model Chamado {
@@ -133,6 +139,10 @@ model Chamado {
   chat        ChatSessao?
   avaliacao   Avaliacao?
   denuncias   Denuncia[]
+
+  // "meus chamados" e "chamados sem técnico" filtram por essas colunas
+  @@index([solicitanteId])
+  @@index([tecnicoId])
 }
 
 // Usuário denuncia o técnico que atendeu um chamado seu. Uma denúncia por
@@ -156,6 +166,11 @@ model Denuncia {
   denunciado   Usuario @relation("Denunciado", fields: [denunciadoId], references: [id])
 
   @@unique([chamadoId, denuncianteId])
+  // contagem de denúncias procedentes por técnico (ranking do admin) filtra
+  // por denunciadoId; chamadoId e denuncianteId já são cobertos pela UNIQUE
+  // acima, que também serve como índice (denuncianteId sozinho não é coberto,
+  // mas nenhuma consulta filtra só por ele hoje)
+  @@index([denunciadoId])
 }
 
 model ChatSessao {
@@ -176,6 +191,10 @@ model ChatSessao {
   tecnico   Usuario  @relation("ChatTecnico", fields: [tecnicoId], references: [id])
 
   mensagens Mensagem[]
+
+  // "meus chats" de cada lado filtra por essas colunas
+  @@index([solicitanteId])
+  @@index([tecnicoId])
 }
 
 model Mensagem {
@@ -193,6 +212,11 @@ model Mensagem {
   respostaAId String?
   respostaA   Mensagem?  @relation("RespostaMensagem", fields: [respostaAId], references: [id])
   respostas   Mensagem[] @relation("RespostaMensagem")
+
+  // histórico do chat é sempre buscado por sessaoId (a mesma consulta
+  // tambem filtra autorId, ao marcar mensagens como lidas)
+  @@index([sessaoId])
+  @@index([autorId])
 }
 
 model Avaliacao {
