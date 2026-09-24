@@ -17,12 +17,18 @@ export function useEvitarTeclado() {
   useEffect(() => {
     if (Platform.OS !== 'android') return undefined;
 
-    const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
+    const medir = (e) => {
       setTecladoVisivel(true);
       ref.current?.measureInWindow((_x, y, _w, altura) => {
         setSobreposicao(Math.max(0, Math.round(y + altura - e.endCoordinates.screenY)));
       });
-    });
+    };
+
+    const mostrar = Keyboard.addListener('keyboardDidShow', medir);
+    // Ex: a barra de sugestões do Gboard só aparece após a primeira letra
+    // digitada, mudando a altura do teclado sem um novo "show" — sem isso o
+    // padding medido no show fica desatualizado bem quando o usuário digita.
+    const mudaFrame = Keyboard.addListener('keyboardDidChangeFrame', medir);
     const esconder = Keyboard.addListener('keyboardDidHide', () => {
       setTecladoVisivel(false);
       setSobreposicao(0);
@@ -30,6 +36,7 @@ export function useEvitarTeclado() {
 
     return () => {
       mostrar.remove();
+      mudaFrame.remove();
       esconder.remove();
     };
   }, []);
