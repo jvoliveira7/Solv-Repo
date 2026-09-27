@@ -14,11 +14,12 @@ export default function RegisterScreen({ navigation }) {
   const [setor, setSetor] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [codigoAcesso, setCodigoAcesso] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   async function handleRegistrar() {
-    if (!nome.trim() || !email.trim() || !senha) {
-      Alert.alert('Atenção', 'Preencha nome, e-mail e senha.');
+    if (!nome.trim() || !email.trim() || !senha || !codigoAcesso.trim()) {
+      Alert.alert('Atenção', 'Preencha nome, e-mail, senha e o código de acesso da sua organização.');
       return;
     }
     if (senha.length < 6) {
@@ -32,7 +33,13 @@ export default function RegisterScreen({ navigation }) {
 
     setCarregando(true);
     try {
-      await registrar({ nome: nome.trim(), email: email.trim(), senha, setor: setor.trim() || undefined });
+      await registrar({
+        nome: nome.trim(),
+        email: email.trim(),
+        senha,
+        setor: setor.trim() || undefined,
+        codigoAcesso: codigoAcesso.trim(),
+      });
     } catch (err) {
       const mensagem = err.response?.data?.erro || 'Erro ao criar conta.';
       Alert.alert('Erro', mensagem);
@@ -93,6 +100,18 @@ export default function RegisterScreen({ navigation }) {
             placeholderTextColor={cores.placeholder}
             value={setor}
             onChangeText={setSetor}
+          />
+        </View>
+
+        <View style={styles.inputLinha}>
+          <Text style={styles.inputIcone}>🔑</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Código de acesso da organização"
+            placeholderTextColor={cores.placeholder}
+            autoCapitalize="none"
+            value={codigoAcesso}
+            onChangeText={setCodigoAcesso}
           />
         </View>
 

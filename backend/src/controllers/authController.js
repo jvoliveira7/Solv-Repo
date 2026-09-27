@@ -13,11 +13,24 @@ function erroDeTamanhoNoCadastro({ nome, email, setor }) {
 }
 
 //POST /api/auth/registro
+// Exige um código de acesso da organização (ORGANIZACAO_ACCESS_CODE), no
+// mesmo espírito do código do técnico: cada instalação do Solv pertence a
+// uma organização, e só quem tem o código (divulgado internamente) consegue
+// criar conta de Usuário Comum nela.
 async function registro(req, res) {
-  const { nome, email, senha, setor } = req.body;
+  const { nome, email, senha, setor, codigoAcesso } = req.body;
 
   if (!nome || !email || !senha) {
     return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
+  }
+
+  if (!process.env.ORGANIZACAO_ACCESS_CODE) {
+    console.error('ORGANIZACAO_ACCESS_CODE não configurado no .env');
+    return res.status(500).json({ erro: 'Cadastro indisponível no momento' });
+  }
+
+  if (codigoAcesso !== process.env.ORGANIZACAO_ACCESS_CODE) {
+    return res.status(403).json({ erro: 'Código de acesso da organização inválido' });
   }
 
   const erroTamanho = erroDeTamanhoNoCadastro({ nome, email, setor });
