@@ -9,6 +9,16 @@ import { Keyboard, Platform } from 'react-native';
 // diferença — se a janela já tiver encolhido, a diferença é 0.
 //
 // Uso: <View ref={ref} style={{ flex: 1, paddingBottom: sobreposicao }}>
+//
+// MARGEM_SEGURANCA: em alguns teclados a barra de sugestões (some apenas
+// ao digitar a 1a letra) não é refletida em nenhum evento do Keyboard —
+// nem keyboardDidChangeFrame — então a medição fica um pouco curta e o
+// campo some por uns pixels (visto em teste real 2026-09-27). Em vez de
+// perseguir a altura exata de cada teclado/fabricante, soma-se uma folga
+// fixa por cima do valor medido: sobra um pouco de espaço em branco no
+// pior caso, mas nunca corta o campo.
+const MARGEM_SEGURANCA = 28;
+
 export function useEvitarTeclado() {
   const ref = useRef(null);
   const [sobreposicao, setSobreposicao] = useState(0);
@@ -20,7 +30,8 @@ export function useEvitarTeclado() {
     const medir = (e) => {
       setTecladoVisivel(true);
       ref.current?.measureInWindow((_x, y, _w, altura) => {
-        setSobreposicao(Math.max(0, Math.round(y + altura - e.endCoordinates.screenY)));
+        const bruta = y + altura - e.endCoordinates.screenY;
+        setSobreposicao(bruta > 0 ? Math.round(bruta) + MARGEM_SEGURANCA : 0);
       });
     };
 
