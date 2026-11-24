@@ -13,9 +13,7 @@ export default function Estrelas({ valor = 0, onMudar, tamanho = 28, gap = 6 }) 
       {[1, 2, 3, 4, 5].map((n) => {
         const preenchida = n <= valor;
         const Estrela = (
-          <Text style={{ fontSize: tamanho, color: preenchida ? '#f5c518' : cores.cardBorda }}>
-            {preenchida ? '★' : '☆'}
-          </Text>
+          <Text style={{ fontSize: tamanho, color: preenchida ? cores.estrela : cores.estrelaVazia }}>★</Text>
         );
 
         if (!interativo) return <View key={n}>{Estrela}</View>;

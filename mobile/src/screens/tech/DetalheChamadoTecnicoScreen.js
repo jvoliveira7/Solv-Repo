@@ -10,12 +10,27 @@ import { tempoRelativo } from '../../utils/tempoRelativo';
 import Avatar from '../../components/Avatar';
 import Estrelas from '../../components/Estrelas';
 
+// RN19: Resolvido (problema solucionado) e Fechado (problema não solucionado
+// neste chamado, tratado em um novo) são estados finais e independentes —
+// nenhum dos dois leva a outro status. O servidor também barra a reabertura.
 const PROXIMOS_STATUS = {
-  ABERTO: ['EM_ATENDIMENTO'],
-  EM_ATENDIMENTO: ['AGUARDANDO', 'RESOLVIDO'],
-  AGUARDANDO: ['EM_ATENDIMENTO', 'RESOLVIDO'],
-  RESOLVIDO: ['FECHADO'],
+  ABERTO: ['EM_ATENDIMENTO', 'FECHADO'],
+  EM_ATENDIMENTO: ['AGUARDANDO', 'RESOLVIDO', 'FECHADO'],
+  AGUARDANDO: ['EM_ATENDIMENTO', 'RESOLVIDO', 'FECHADO'],
+  RESOLVIDO: [],
   FECHADO: [],
+};
+
+// Os dois estados finais não têm volta, então a confirmação explica o que cada um significa.
+const CONFIRMACAO_FINAL = {
+  RESOLVIDO: {
+    titulo: 'Marcar como Resolvido?',
+    mensagem: 'Use quando o problema foi solucionado neste chamado. Essa ação não pode ser desfeita.',
+  },
+  FECHADO: {
+    titulo: 'Fechar o chamado?',
+    mensagem: 'Use quando o problema não foi solucionado neste chamado e um novo foi aberto. Essa ação não pode ser desfeita.',
+  },
 };
 
 export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
@@ -87,12 +102,17 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
   }
 
   function confirmarStatus(novoStatus) {
+    const confirmacao = CONFIRMACAO_FINAL[novoStatus];
     Alert.alert(
-      `Mover para "${statusLabel[novoStatus]}"?`,
-      'O solicitante vê essa mudança de status no chamado.',
+      confirmacao ? confirmacao.titulo : `Mover para "${statusLabel[novoStatus]}"?`,
+      confirmacao ? confirmacao.mensagem : 'O solicitante vê essa mudança de status no chamado.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', onPress: () => handleAtualizarStatus(novoStatus) },
+        {
+          text: 'Confirmar',
+          style: confirmacao ? 'destructive' : 'default',
+          onPress: () => handleAtualizarStatus(novoStatus),
+        },
       ]
     );
   }
@@ -216,7 +236,7 @@ export default function DetalheChamadoTecnicoScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
-        {podeConvidarChat && chamado.status !== 'EM_ATENDIMENTO' && chamado.status !== 'FECHADO' && (
+        {podeConvidarChat && !['EM_ATENDIMENTO', 'RESOLVIDO', 'FECHADO'].includes(chamado.status) && (
           <View style={[styles.botaoChat, styles.botaoChatDesabilitado]}>
             <Text style={[styles.botaoChatTexto, { color: cores.textoTerciario }]}>
               💬 Assuma o chamado ("Em atendimento") para poder abrir o chat

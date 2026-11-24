@@ -7,10 +7,7 @@ function iniciais(nome = '') {
   return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase();
 }
 
-// Avatar padrão do app: mostra a foto (base64/uri) quando existe, senão cai
-// pras iniciais coloridas — usado em qualquer lugar que hoje mostra um
-// "MT"/"H" circular (hero card de chamado, comentários, lista de chats,
-// header do chat).
+
 export default function Avatar({ uri, nome, size = 32, cor = cores.azul, fonteSize, style }) {
   const raio = size / 2;
   const tamanhoFonte = fonteSize || Math.max(10, Math.round(size * 0.38));

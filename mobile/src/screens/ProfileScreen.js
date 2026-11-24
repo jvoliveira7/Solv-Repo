@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import EspecialidadeTags from '../components/EspecialidadeTags';
+import { MAX_ESPECIALIDADES } from '../utils/especialidades';
 import { cores, espaco, raio, comum, fontInter } from '../theme';
 
 const PERFIL_LABEL = { USUARIO: 'Usuário', TECNICO: 'Técnico', ADMIN: 'Administrador' };
@@ -19,7 +21,7 @@ function iniciais(nome = '') {
 }
 
 export default function ProfileScreen() {
-  const { usuario, logout, atualizarAvatar } = useAuth();
+  const { usuario, logout, atualizarAvatar, atualizarEspecialidades } = useAuth();
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [estatisticas, setEstatisticas] = useState(null);
   const [carregandoStats, setCarregandoStats] = useState(EH_TECNICO(usuario?.perfil));
@@ -102,6 +104,35 @@ export default function ProfileScreen() {
     ]);
   }
 
+  const [editandoEsp, setEditandoEsp] = useState(false);
+  const [selecionadas, setSelecionadas] = useState([]);
+  const [salvandoEsp, setSalvandoEsp] = useState(false);
+
+  function iniciarEdicaoEsp() {
+    setSelecionadas(usuario?.especialidades || []);
+    setEditandoEsp(true);
+  }
+
+  function alternarEsp(id) {
+    setSelecionadas((atual) => (
+      atual.includes(id)
+        ? atual.filter((e) => e !== id)
+        : atual.length < MAX_ESPECIALIDADES ? [...atual, id] : atual
+    ));
+  }
+
+  async function salvarEsp() {
+    setSalvandoEsp(true);
+    try {
+      await atualizarEspecialidades(selecionadas);
+      setEditandoEsp(false);
+    } catch (err) {
+      Alert.alert('Erro', err.response?.data?.erro || 'Não foi possível salvar as especialidades.');
+    } finally {
+      setSalvandoEsp(false);
+    }
+  }
+
   const ehTecnico = EH_TECNICO(usuario?.perfil);
 
   return (
@@ -141,6 +172,42 @@ export default function ProfileScreen() {
         </View>
         {usuario?.setor && <Text style={styles.setor}>{usuario.setor}</Text>}
       </View>
+
+      {ehTecnico && (
+        <View style={styles.statsSecao}>
+          <View style={styles.espCabecalho}>
+            <Text style={[styles.statsTitulo, { marginBottom: 0 }]}>Especialidades</Text>
+            {!editandoEsp && (
+              <TouchableOpacity onPress={iniciarEdicaoEsp} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.espEditar}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.espCartao}>
+            {editandoEsp ? (
+              <>
+                <Text style={styles.espAjuda}>
+                  Escolha até {MAX_ESPECIALIDADES} áreas em que você atua ({selecionadas.length}/{MAX_ESPECIALIDADES}).
+                </Text>
+                <EspecialidadeTags valores={selecionadas} editavel maximo={MAX_ESPECIALIDADES} onToggle={alternarEsp} />
+                <View style={styles.espAcoes}>
+                  <TouchableOpacity style={styles.espBotaoSec} onPress={() => setEditandoEsp(false)} disabled={salvandoEsp}>
+                    <Text style={styles.espBotaoSecTexto}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.espBotaoPri, salvandoEsp && { opacity: 0.6 }]} onPress={salvarEsp} disabled={salvandoEsp}>
+                    {salvandoEsp ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.espBotaoPriTexto}>Salvar</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : usuario?.especialidades?.length > 0 ? (
+              <EspecialidadeTags valores={usuario.especialidades} />
+            ) : (
+              <Text style={styles.espVazio}>Nenhuma especialidade ainda. Toque em Editar para escolher.</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {ehTecnico && (
         <View style={styles.statsSecao}>
@@ -225,6 +292,22 @@ const styles = StyleSheet.create({
   statValorEstrela: { color: '#f5c518', fontSize: 18 },
   statValorVazio: { color: cores.textoTerciario, fontSize: 12, textAlign: 'center', lineHeight: 16 },
   statLabel: { color: cores.textoSecundario, fontSize: 11, marginTop: 6, textAlign: 'center' },
+
+  espCabecalho: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10,
+  },
+  espEditar: { color: cores.azulClaro, fontSize: 13, fontFamily: fontInter.bold },
+  espCartao: { ...comum.card, paddingVertical: espaco.lg },
+  espAjuda: { color: cores.textoSecundario, fontSize: 12, marginBottom: 12 },
+  espVazio: { color: cores.textoTerciario, fontSize: 13 },
+  espAcoes: { flexDirection: 'row', gap: 10, marginTop: espaco.lg },
+  espBotaoSec: {
+    flex: 1, borderRadius: raio.md, paddingVertical: 12, alignItems: 'center',
+    borderWidth: 1, borderColor: '#2f3447',
+  },
+  espBotaoSecTexto: { color: cores.textoSecundario, fontSize: 14, fontFamily: fontInter.bold },
+  espBotaoPri: { flex: 1, borderRadius: raio.md, paddingVertical: 12, alignItems: 'center', backgroundColor: cores.azul },
+  espBotaoPriTexto: { color: '#fff', fontSize: 14, fontFamily: fontInter.bold },
 
   botaoSair: {
     borderRadius: raio.md, paddingVertical: 15, alignItems: 'center',

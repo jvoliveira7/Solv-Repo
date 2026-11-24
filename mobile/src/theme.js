@@ -1,6 +1,3 @@
-// Design tokens do Solv — extraídos do mockup oficial (fundo azul-marinho
-// escuro, acentos em azul profundo, cards arredondados). Toda tela deve
-// puxar cores/espaçamento daqui em vez de hex soltos por arquivo.
 
 export const cores = {
   fundo: '#0a0c14',
@@ -28,6 +25,11 @@ export const cores = {
   erroSuave: '#ef444422',
   info: '#8b5cf6',
   infoSuave: '#8b5cf622',
+
+  // Estrelas de avaliação: a vazia precisa contrastar com o card (>= 3:1) e a
+  // cheia continuar bem distinta dela. Antes a vazia usava cardBorda (~1,1:1).
+  estrela: '#f5c518',
+  estrelaVazia: '#7a829c',
 };
 
 export const statusCor = {

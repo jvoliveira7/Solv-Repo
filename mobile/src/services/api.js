@@ -2,8 +2,9 @@ import axios from 'axios';
 import { getToken } from '../storage/authStorage';
 
 const api = axios.create({
-  baseURL: 'http://192.168.0.30:3000/api', // Android emulator → localhost
+  baseURL: 'https://laurine-defrayable-jenna.ngrok-free.dev/api',
   timeout: 10000,
+  headers: { 'ngrok-skip-browser-warning': 'true' },
 });
 
 // Injeta o token em toda requisição automaticamente

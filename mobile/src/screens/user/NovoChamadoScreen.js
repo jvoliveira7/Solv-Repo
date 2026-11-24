@@ -124,7 +124,7 @@ export default function NovoChamadoScreen({ navigation }) {
         ))}
       </View>
 
-      <Text style={styles.label}>Localização (opcional)</Text>
+      <Text style={styles.label}>Localização do Problema</Text>
       <TextInput
         style={styles.input}
         placeholder="📍 Ex: Sala 12, 2º andar"

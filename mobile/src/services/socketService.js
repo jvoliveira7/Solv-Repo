@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import { getToken } from '../storage/authStorage';
 
-const SOCKET_URL = 'http://192.168.0.30:3000';
+const SOCKET_URL = 'https://laurine-defrayable-jenna.ngrok-free.dev';
 
 let socket = null;
 
@@ -18,6 +18,7 @@ export async function conectarSocket() {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
+      extraHeaders: { 'ngrok-skip-browser-warning': 'true' },
     });
 
     socket.on('connect', () => {

@@ -40,6 +40,14 @@
           "color": "#2d6fff",
           "defaultChannel": "chat"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "extra": {

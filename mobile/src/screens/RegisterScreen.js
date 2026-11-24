@@ -7,8 +7,33 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { cores, espaco, raio, comum, fontInter } from '../theme';
 
-export default function RegisterScreen({ navigation }) {
-  const { registrar } = useAuth();
+// Uma única tela para os dois cadastros. Quem decide é o parâmetro de rota
+// `perfil` (definido no AppNavigator); qualquer outro valor cai em USUARIO.
+// O servidor é quem manda de verdade: o perfil gravado depende da ROTA da API
+// (/registro ou /registro-tecnico) e do código de acesso, nunca desta tela.
+const CONFIG = {
+  USUARIO: {
+    subtitulo: 'Crie sua conta pra abrir chamados',
+    titulo: 'Criar conta',
+    aviso: 'Para criar sua conta, use o código de acesso da organização, divulgado internamente pela sua instituição.',
+    placeholderCodigo: 'Código de acesso da organização',
+    erroCodigo: 'Informe o código de acesso da organização.',
+    textoBotao: 'Criar conta',
+  },
+  TECNICO: {
+    subtitulo: 'Cadastro de técnico',
+    titulo: 'Criar conta de técnico',
+    aviso: 'Precisa do código de acesso técnico, fornecido pela sua equipe/administrador.',
+    placeholderCodigo: 'Código de acesso técnico',
+    erroCodigo: 'Informe o código de acesso técnico.',
+    textoBotao: 'Criar conta de técnico',
+  },
+};
+
+export default function RegisterScreen({ navigation, route }) {
+  const perfil = route?.params?.perfil === 'TECNICO' ? 'TECNICO' : 'USUARIO';
+  const cfg = CONFIG[perfil];
+  const { registrar, registrarTecnico } = useAuth();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [setor, setSetor] = useState('');
@@ -18,8 +43,12 @@ export default function RegisterScreen({ navigation }) {
   const [carregando, setCarregando] = useState(false);
 
   async function handleRegistrar() {
-    if (!nome.trim() || !email.trim() || !senha || !codigoAcesso.trim()) {
-      Alert.alert('Atenção', 'Preencha nome, e-mail, senha e o código de acesso da sua organização.');
+    if (!nome.trim() || !email.trim() || !senha) {
+      Alert.alert('Atenção', 'Preencha nome, e-mail e senha.');
+      return;
+    }
+    if (!codigoAcesso.trim()) {
+      Alert.alert('Atenção', cfg.erroCodigo);
       return;
     }
     if (senha.length < 6) {
@@ -33,9 +62,10 @@ export default function RegisterScreen({ navigation }) {
 
     setCarregando(true);
     try {
-      await registrar({
+      const cadastrar = perfil === 'TECNICO' ? registrarTecnico : registrar;
+      await cadastrar({
         nome: nome.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         senha,
         setor: setor.trim() || undefined,
         codigoAcesso: codigoAcesso.trim(),
@@ -61,12 +91,13 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.logo}>
             Solv<Text style={styles.logoPonto}>.</Text>
           </Text>
-          <Text style={styles.subtitle}>Crie sua conta pra abrir chamados</Text>
+          <Text style={styles.subtitle}>{cfg.subtitulo}</Text>
         </View>
       </View>
 
       <ScrollView style={styles.cartao} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <Text style={styles.cartaoTitulo}>Criar conta</Text>
+        <Text style={styles.cartaoTitulo}>{cfg.titulo}</Text>
+        <Text style={styles.cartaoAviso}>{cfg.aviso}</Text>
 
         <View style={styles.inputLinha}>
           <Text style={styles.inputIcone}>👤</Text>
@@ -87,6 +118,7 @@ export default function RegisterScreen({ navigation }) {
             placeholderTextColor={cores.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
             value={email}
             onChangeText={setEmail}
           />
@@ -96,7 +128,7 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.inputIcone}>🏢</Text>
           <TextInput
             style={styles.input}
-            placeholder="Setor (opcional)"
+            placeholder="Setor "
             placeholderTextColor={cores.placeholder}
             value={setor}
             onChangeText={setSetor}
@@ -107,9 +139,10 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.inputIcone}>🔑</Text>
           <TextInput
             style={styles.input}
-            placeholder="Código de acesso da organização"
+            placeholder={cfg.placeholderCodigo}
             placeholderTextColor={cores.placeholder}
             autoCapitalize="none"
+            autoCorrect={false}
             value={codigoAcesso}
             onChangeText={setCodigoAcesso}
           />
@@ -146,7 +179,7 @@ export default function RegisterScreen({ navigation }) {
         >
           {carregando
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.botaoTexto}>Criar conta</Text>
+            : <Text style={styles.botaoTexto}>{cfg.textoBotao}</Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -179,7 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 24,
   },
-  cartaoTitulo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, marginBottom: 20 },
+  cartaoTitulo: { color: cores.texto, fontSize: 20, fontFamily: fontInter.extrabold, marginBottom: 8 },
+  cartaoAviso: { color: cores.textoTerciario, fontSize: 13, lineHeight: 18, marginBottom: 20 },
 
   inputLinha: {
     flexDirection: 'row', alignItems: 'center',

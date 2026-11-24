@@ -42,6 +42,8 @@ model Usuario {
   senha     String   @db.VarChar(60) // hash bcrypt tem sempre 60 caracteres
   setor     String?  @db.VarChar(80)
   avatar    String?  @db.Text
+  // Áreas em que o técnico atua (tags pré-definidas, ids validados na API).
+  especialidades String[] @default([])
   pushToken String?  @db.VarChar(255)
   perfil    String   @default("USUARIO") @db.VarChar(10) // USUARIO | TECNICO | ADMIN
   criadoEm  DateTime @default(now()) @db.Timestamptz(3)

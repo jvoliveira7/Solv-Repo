@@ -39,7 +39,7 @@ const CATEGORIA_ICONE = {
 const ESCALONAMENTO_IDADE = {
   normal: { cor: cores.textoTerciario, icone: '🕓' },
   aviso: { cor: cores.aviso, icone: '⏱️' },
-  alerta: { cor: cores.erro, icone: '🔥' },
+  alerta: { cor: cores.erro, icone: '' },
 };
 
 function nivelIdade(dataCriacao) {

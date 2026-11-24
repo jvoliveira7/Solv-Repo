@@ -7,6 +7,7 @@ import { cores, espaco, raio, comum, fontInter } from '../theme';
 import Avatar from './Avatar';
 
 const ALTURA_TELA = Dimensions.get('window').height;
+const ROTULOS_NOTA = ['Péssimo', 'Ruim', 'Regular', 'Bom', 'Ótimo'];
 const MOLA = { friction: 8, tension: 60, useNativeDriver: true };
 const PADDING_INFERIOR = Platform.OS === 'ios' ? 28 : espaco.lg;
 
@@ -38,7 +39,7 @@ function Estrela({ ativa, atraso, tamanho, onPress }) {
   return (
     <Pressable onPress={onPress} hitSlop={10}>
       <Animated.View style={[styles.estrelaBox, { width: tamanho, height: tamanho, transform: [{ scale: escala }] }]}>
-        <Text style={[styles.estrelaGlifo, { fontSize: tamanho, color: cores.cardBorda }]}>☆</Text>
+        <Text style={[styles.estrelaGlifo, { fontSize: tamanho, color: cores.estrelaVazia }]}>★</Text>
         <Animated.Text style={[styles.estrelaGlifo, styles.estrelaPreenchida, { fontSize: tamanho, opacity: preenchimento }]}>
           ★
         </Animated.Text>
@@ -140,6 +141,9 @@ export default function AvaliacaoModal({ visible, tecnico, enviando, onEnviar, o
 
             <View style={styles.estrelasArea}>
               <EstrelasAnimadas valor={nota} onMudar={setNota} />
+              <Text style={styles.estrelaRotulo}>
+                {nota > 0 ? ROTULOS_NOTA[nota - 1] : 'Toque nas estrelas para avaliar'}
+              </Text>
             </View>
 
             <TextInput
@@ -192,7 +196,8 @@ const styles = StyleSheet.create({
   estrelasLinha: { flexDirection: 'row', alignItems: 'center' },
   estrelaBox: { justifyContent: 'center', alignItems: 'center' },
   estrelaGlifo: { position: 'absolute' },
-  estrelaPreenchida: { color: '#f5c518' },
+  estrelaPreenchida: { color: cores.estrela },
+  estrelaRotulo: { color: cores.textoSecundario, fontSize: 13, marginTop: espaco.md },
   comentarioInput: { height: 80, textAlignVertical: 'top', marginBottom: espaco.lg },
   botaoEnviar: {
     backgroundColor: cores.azul, borderRadius: raio.md,

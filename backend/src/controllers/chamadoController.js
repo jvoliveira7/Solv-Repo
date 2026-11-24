@@ -106,7 +106,7 @@ async function listar(req, res) {
       orderBy: [{ prioridade: 'desc' }, { criadoEm: 'asc' }],
       include: {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
-        tecnico: { select: { id: true, nome: true, avatar: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true, especialidades: true } },
         chat: { select: { status: true } },
       },
     });
@@ -128,7 +128,7 @@ async function buscarPorId(req, res) {
       where: { id },
       include: {
         solicitante: { select: { id: true, nome: true, avatar: true, setor: true } },
-        tecnico: { select: { id: true, nome: true, avatar: true } },
+        tecnico: { select: { id: true, nome: true, avatar: true, especialidades: true } },
         avaliacao: true,
       },
     });
@@ -149,6 +149,16 @@ async function buscarPorId(req, res) {
   }
 }
 
+// RN19 — Resolvido e Fechado são estados finais e independentes.
+//  - Resolvido: o problema foi solucionado neste chamado.
+//  - Fechado: o problema não teve solução neste chamado e foi tratado em um novo.
+// Nenhum dos dois volta a Aberto/Em atendimento/Aguardando, e Resolvido não
+// evolui para Fechado. Quem precisa tratar o problema de novo abre outro chamado.
+const DESTINOS_APOS_ENCERRAMENTO = {
+  RESOLVIDO: [],
+  FECHADO: [],
+};
+
 // PATCH /api/chamados/:id/status  (técnico/admin)
 async function atualizarStatus(req, res) {
   const { id } = req.params;
@@ -163,6 +173,25 @@ async function atualizarStatus(req, res) {
     const chamado = await prisma.chamado.findUnique({ where: { id } });
     if (!chamado) return res.status(404).json({ erro: 'Chamado não encontrado' });
 
+    const incluirPessoas = {
+      solicitante: { select: { id: true, nome: true, avatar: true } },
+      tecnico: { select: { id: true, nome: true, avatar: true, especialidades: true } },
+    };
+
+    // Mesmo status de novo (ex.: toque duplo): não muda nada, não mexe em
+    // atualizadoEm nem reencerra o chat.
+    if (chamado.status === status) {
+      const atual = await prisma.chamado.findUnique({ where: { id }, include: incluirPessoas });
+      return res.json(atual);
+    }
+
+    const destinosPermitidos = DESTINOS_APOS_ENCERRAMENTO[chamado.status];
+    if (destinosPermitidos && !destinosPermitidos.includes(status)) {
+      return res.status(409).json({
+        erro: 'Chamados resolvidos ou fechados não podem ser reabertos nem alterados. Abra um novo chamado.',
+      });
+    }
+
     const dados = { status };
 
     // Ao assumir, vincula o técnico automaticamente
@@ -173,10 +202,7 @@ async function atualizarStatus(req, res) {
     const atualizado = await prisma.chamado.update({
       where: { id },
       data: dados,
-      include: {
-        solicitante: { select: { id: true, nome: true, avatar: true } },
-        tecnico: { select: { id: true, nome: true, avatar: true } },
-      },
+      include: incluirPessoas,
     });
 
     // Ao resolver/fechar, o chat (se ativo) vira histórico read-only — nunca é apagado
