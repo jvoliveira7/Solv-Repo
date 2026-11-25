@@ -1,4 +1,21 @@
 require('dotenv').config();
+
+// Falha cedo e com mensagem clara se o .env não foi lido (arquivo ausente, vazio,
+// com nome errado como ".env.txt", ou servidor iniciado fora da pasta do backend).
+const OBRIGATORIAS = ['DATABASE_URL', 'JWT_SECRET'];
+const faltando = OBRIGATORIAS.filter((nome) => !process.env[nome]);
+if (faltando.length > 0) {
+  console.error(
+    `Variáveis ausentes: ${faltando.join(', ')}. Confira se o arquivo .env existe na pasta do backend ` +
+    '(de onde você roda npm start) e se o nome é exatamente ".env".'
+  );
+  process.exit(1);
+}
+// Sem estes códigos o cadastro correspondente fica indisponível (o resto funciona).
+['ORGANIZACAO_ACCESS_CODE', 'TECNICO_ACCESS_CODE'].forEach((nome) => {
+  if (!process.env[nome]) console.warn(`Aviso: ${nome} não está no .env — o cadastro correspondente ficará indisponível.`);
+});
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -13,6 +30,11 @@ const denunciaRoutes = require('./routes/denuncias');
 const configurarSocket = require('./socket/chatHandler');
 
 const app = express();
+
+// O app chega por túnel/proxy (X-Forwarded-For). Com isso o limitador de tentativas
+// conta cada cliente pelo IP real, e não todo mundo como o IP do túnel.
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 const io = new Server(server, {

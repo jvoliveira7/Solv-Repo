@@ -12,6 +12,7 @@ import Avatar from '../../components/Avatar';
 import Estrelas from '../../components/Estrelas';
 import AvaliacaoModal from '../../components/AvaliacaoModal';
 import DenunciaModal, { MOTIVOS_DENUNCIA } from '../../components/DenunciaModal';
+import EspecialidadeTags from '../../components/EspecialidadeTags';
 
 const DENUNCIA_STATUS = {
   PENDENTE: { label: 'Em análise', cor: cores.aviso },
@@ -166,12 +167,19 @@ export default function DetalheChamadoScreen({ route, navigation }) {
           </View>
 
           <View style={styles.metaLista}>
-            {chamado.tecnico && (
-              <View style={styles.metaLinha}>
-                <Avatar uri={chamado.tecnico.avatar} nome={chamado.tecnico.nome} size={20} cor={cores.azul} fonteSize={9} />
-                <Text style={styles.metaTexto}>Técnico: {chamado.tecnico.nome}</Text>
+                  {chamado.tecnico && (
+          <View>
+            <View style={styles.metaLinha}>
+              <Avatar uri={chamado.tecnico.avatar} nome={chamado.tecnico.nome} size={20} cor={cores.azul} fonteSize={9} />
+              <Text style={styles.metaTexto}>Técnico: {chamado.tecnico.nome}</Text>
+            </View>
+            {chamado.tecnico.especialidades?.length > 0 && (
+              <View style={{ marginLeft: 28, marginTop: 6 }}>
+                <EspecialidadeTags valores={chamado.tecnico.especialidades} compacto />
               </View>
             )}
+          </View>
+        )}
             {chamado.localizacao && (
               <View style={styles.metaLinha}>
                 <Text style={styles.metaIcone}>📍</Text>
